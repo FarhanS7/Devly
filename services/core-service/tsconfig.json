@@ -1,0 +1,37 @@
+// {
+//   "extends": "../../tsconfig.json",
+//   "references": [{ "path": "../../shared" }],
+//   "compilerOptions": {
+//     "rootDir": "./src",
+//     "outDir": "./dist",
+//     "baseUrl": ".",
+//     "paths": {
+//       "@shared/*": ["../../shared/*"]
+//     },
+//     "module": "nodenext",
+//     "moduleResolution": "nodenext",
+//     "resolvePackageJsonExports": true,
+//     "esModuleInterop": true,
+//     "emitDecoratorMetadata": true,
+//     "experimentalDecorators": true
+//   },
+//   "include": ["src/**/*"]
+// }
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../../dist/shared/*"]
+    },
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,27 @@
+// {
+//   "extends": "./tsconfig.json",
+//   "compilerOptions": {
+//     "rootDir": "../src",
+//     "outDir": "./dist",
+//     "removeComments": true,
+//     "noEmitOnError": true
+//   },
+//   "include": ["src/**/*", "../../shared/**/*.ts"]
+// }
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "removeComments": true,
+    "noEmitOnError": true
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.spec.ts",
+    "**/*.e2e-spec.ts"
+  ]
+}

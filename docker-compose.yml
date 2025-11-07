@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  # ===========================================
+  # 🐘 PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15
+    container_name: devconnect-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: devconnect
+    ports:
+      - "5435:5432" # host:container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d devconnect"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - devconnect
+
+  # ===========================================
+  # 🧩 Core NestJS Service
+  # ===========================================
+  core-service:
+    build:
+      context: ./services/core-service
+      dockerfile: Dockerfile
+    container_name: devconnect-core-service
+    restart: unless-stopped
+    env_file:
+      - ./services/core-service/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devconnect
+    command: >
+      sh -c "
+      npx prisma migrate deploy --schema=./prisma/schema.prisma &&
+      node dist/src/main.js
+      "
+
+# ===========================================
+# 🔗 Shared Network & Volumes
+# ===========================================
+networks:
+  devconnect:
+    driver: bridge
+
+volumes:
+  postgres_data:

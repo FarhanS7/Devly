@@ -1,0 +1,15 @@
+import { config as dotenvConfig } from 'dotenv';
+import path from 'path';
+import { defineConfig, env } from 'prisma/config';
+
+// Force load the .env file manually (Windows-safe)
+dotenvConfig({ path: path.resolve(__dirname, '../.env') });
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: { path: 'prisma/migrations' },
+  engine: 'classic',
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});
