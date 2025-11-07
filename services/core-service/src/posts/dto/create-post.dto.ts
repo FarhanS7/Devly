@@ -2,7 +2,7 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreatePostDto {
   @IsString()
-  @MaxLength(1000, { message: 'Post content too long (max 1000 chars)' })
+  @MaxLength(500)
   content: string;
 
   @IsOptional()
