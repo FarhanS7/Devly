@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 
@@ -19,15 +23,22 @@ export class UsersService {
         createdAt: true,
       },
     });
-
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   async updateProfile(userId: string, dto: UpdateUserDto) {
+    if (dto.handle) {
+      const handleTaken = await this.prisma.user.findUnique({
+        where: { handle: dto.handle },
+      });
+      if (handleTaken && handleTaken.id !== userId)
+        throw new BadRequestException('Handle already in use');
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { ...dto },
+      data: dto,
       select: {
         id: true,
         email: true,
@@ -38,14 +49,16 @@ export class UsersService {
         updatedAt: true,
       },
     });
+
     return updated;
   }
 
-  async getPublicProfile(handle: string) {
+  async getUserByHandle(handle: string) {
     const user = await this.prisma.user.findUnique({
       where: { handle },
       select: {
         id: true,
+        email: true,
         handle: true,
         name: true,
         bio: true,
@@ -53,7 +66,6 @@ export class UsersService {
         createdAt: true,
       },
     });
-
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

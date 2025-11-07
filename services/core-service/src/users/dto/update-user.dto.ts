@@ -8,11 +8,16 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
+  @MaxLength(160)
   bio?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
   location?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  handle?: string;
 }

@@ -1,5 +1,13 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { GetUser } from '../auth/decorators/get-user.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './services/users.service';
@@ -8,20 +16,24 @@ import { UsersService } from './services/users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // --- GET current profile ---
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@GetUser() user: any) {
-    return this.usersService.getProfile(user.userId);
+  async getProfile(@Req() req: any) {
+    return this.usersService.getProfile(req.user.sub);
   }
 
+  // --- PATCH update profile ---
   @UseGuards(JwtAuthGuard)
   @Patch('update')
-  updateProfile(@GetUser() user: any, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateProfile(user.userId, dto);
+  async updateProfile(@Req() req: any, @Body() dto: UpdateUserDto) {
+    return this.usersService.updateProfile(req.user.sub, dto);
   }
 
+  // --- GET public user by handle ---
   @Get(':handle')
-  getPublicProfile(@Param('handle') handle: string) {
-    return this.usersService.getPublicProfile(handle);
+  @HttpCode(200)
+  async getUserByHandle(@Param('handle') handle: string) {
+    return this.usersService.getUserByHandle(handle);
   }
 }
