@@ -1,0 +1,18 @@
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+}
+
+model Notification {
+  id           String           @id @default(uuid())
+  type         NotificationType
+  actorId      String
+  recipientId  String
+  postId       String?
+  message      String
+  seen         Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  
+}
