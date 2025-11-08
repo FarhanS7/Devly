@@ -19,6 +19,6 @@ import { NotificationsService } from './notifications.service';
     NotificationsGateway,
     PrismaService,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsGateway],
 })
 export class NotificationsModule {}

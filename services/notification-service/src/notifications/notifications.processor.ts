@@ -1,32 +1,40 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { NotificationType } from '@prisma/client';
-import { Job } from 'bullmq';
-import { NotificationsGateway } from './notifications.gateway';
+import { Process, Processor } from '@nestjs/bull';
+import type { Job } from 'bull';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from './notifications.service';
 
 @Processor('notifications')
-export class NotificationsProcessor extends WorkerHost {
+export class NotificationsProcessor {
   constructor(
-    private readonly notifications: NotificationsService,
+    private readonly notificationsService: NotificationsService,
     private readonly gateway: NotificationsGateway,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job) {
-    const { type, actorId, recipientId, message, postId } = job.data;
+  @Process('notify')
+  async handleNotification(job: Job) {
+    const data = job.data;
+    console.log('📥 Received notification job:', data);
 
-    // Save in DB
-    const saved = await this.notifications.createNotification({
-      type: type as NotificationType,
-      actorId,
-      recipientId,
-      message,
-      postId,
+    // 1) Persist to DB
+    const saved = await this.notificationsService.createNotification({
+      type: data.type,
+      actorId: data.actorId,
+      recipientId: data.recipientId,
+      message: data.message,
+      postId: data.postId,
     });
 
-    // Push via WebSocket
-    await this.gateway.pushToUser(recipientId, saved);
-    console.log(`📨 Sent ${type} notification to user ${recipientId}`);
+    // 2) Push to user in real-time
+    this.gateway.emitToUser(saved.recipientId, 'notification', {
+      id: saved.id,
+      type: saved.type,
+      message: saved.message,
+      actorId: saved.actorId,
+      postId: saved.postId ?? null,
+      createdAt: saved.createdAt,
+      seen: saved.seen,
+    });
+
+    console.log('Notification saved & pushed');
   }
 }
