@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../../../node_modules/.prisma/client"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -8,22 +8,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+////////////////////////////////////////////////////
+// 🧑 USER MODEL
+////////////////////////////////////////////////////
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  handle        String         @unique
-  passwordHash  String
-  createdAt     DateTime       @default(now())
-  bio           String?
-  location      String?
-  name          String?
-  updatedAt     DateTime?      @updatedAt
-  comments      Comment[]
-  likes         Like[]
+  id           String    @id @default(uuid())
+  email        String    @unique
+  handle       String    @unique
+  passwordHash String
+  name         String?
+  bio          String?
+  location     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt
+
+  // Relations
   posts         Post[]
+  likes         Like[]
+  comments      Comment[]
   refreshTokens RefreshToken[]
+
+  // Follow relations
+  followers Follow[] @relation("Followers")
+  following Follow[] @relation("Following")
 }
 
+////////////////////////////////////////////////////
+// 🔐 REFRESH TOKENS (for Auth)
+////////////////////////////////////////////////////
 model RefreshToken {
   id        String    @id @default(uuid())
   userId    String
@@ -32,41 +44,77 @@ model RefreshToken {
   createdAt DateTime  @default(now())
   expiresAt DateTime
   rotatedAt DateTime?
-  user      User      @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
 
+////////////////////////////////////////////////////
+// 📝 POSTS
+////////////////////////////////////////////////////
 model Post {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   content     String
   imageUrl    String?
   codeSnippet String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   authorId    String
-  comments    Comment[]
-  likes       Like[]
-  author      User      @relation(fields: [authorId], references: [id])
+
+  // Relations
+  author   User      @relation(fields: [authorId], references: [id])
+  likes    Like[]
+  comments Comment[]
+
+  @@index([authorId])
 }
 
+////////////////////////////////////////////////////
+// ❤️ LIKES
+////////////////////////////////////////////////////
 model Like {
   id        String   @id @default(uuid())
   userId    String
   postId    String
   createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
 
   @@unique([userId, postId])
+  @@index([postId])
 }
 
+////////////////////////////////////////////////////
+// 💬 COMMENTS
+////////////////////////////////////////////////////
 model Comment {
   id        String   @id @default(uuid())
   text      String
   userId    String
   postId    String
   createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@index([postId])
+}
+
+////////////////////////////////////////////////////
+// 🧑‍🤝‍🧑 FOLLOW SYSTEM
+////////////////////////////////////////////////////
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Following", fields: [followerId], references: [id])
+  following User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }

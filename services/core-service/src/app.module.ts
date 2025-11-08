@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { LoggerMiddleware } from './common/logger/logger.middleware';
 import { AppLogger } from './common/logger/logger.service';
 import configuration, { validationSchema } from './config/configuration';
+import { FollowsModule } from './follows/follows.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { HealthController } from './health/health.controller';
     AuthModule,
     UsersModule,
     PostsModule,
+    FollowsModule,
   ],
   controllers: [HealthController],
   providers: [
