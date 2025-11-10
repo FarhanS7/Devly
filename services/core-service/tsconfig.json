@@ -1,37 +1,23 @@
-// {
-//   "extends": "../../tsconfig.json",
-//   "references": [{ "path": "../../shared" }],
-//   "compilerOptions": {
-//     "rootDir": "./src",
-//     "outDir": "./dist",
-//     "baseUrl": ".",
-//     "paths": {
-//       "@shared/*": ["../../shared/*"]
-//     },
-//     "module": "nodenext",
-//     "moduleResolution": "nodenext",
-//     "resolvePackageJsonExports": true,
-//     "esModuleInterop": true,
-//     "emitDecoratorMetadata": true,
-//     "experimentalDecorators": true
-//   },
-//   "include": ["src/**/*"]
-// }
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": "../..",
     "outDir": "./dist",
     "baseUrl": ".",
+    "types": ["jest", "node"],
     "paths": {
-      "@shared/*": ["../../dist/shared/*"]
+      "@shared/*": ["../../shared/*"]
     },
     "module": "nodenext",
+    "isolatedModules": true,
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "allowJs": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*", "prisma/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

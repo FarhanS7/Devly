@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
-
-type JwtPayload = { sub: string; email: string; handle: string };
 
 @Injectable()
 export class TokenService {
@@ -12,102 +9,89 @@ export class TokenService {
     private readonly prisma: PrismaService,
   ) {}
 
-  // ------------------ Helpers ------------------
-  async hash(value: string) {
-    return argon2.hash(value);
-  }
-
-  async verifyHash(hashed: string, value: string) {
-    return argon2.verify(hashed, value);
-  }
-
-  // ------------------ Token Signers ------------------
-  async signAccessToken(payload: JwtPayload) {
+  //  Generate Access Token
+  async signAccessToken(payload: any): Promise<string> {
+    const expiresIn = (process.env.JWT_EXPIRATION ||
+      '15m') as JwtSignOptions['expiresIn'];
     return this.jwt.signAsync(payload, {
-      expiresIn: '15m',
-      secret: process.env.JWT_ACCESS_SECRET!,
+      secret: process.env.JWT_SECRET!,
+      expiresIn,
     });
   }
 
-  async signRefreshToken(payload: JwtPayload) {
-    return this.jwt.signAsync(payload, {
-      expiresIn: '7d',
+  // //  Generate Refresh Token
+  // async signRefreshToken(payload: any): Promise<string> {
+  //   const expiresIn = (process.env.JWT_REFRESH_EXPIRATION ||
+  //     '7d') as JwtSignOptions['expiresIn'];
+  //   return this.jwt.signAsync(payload, {
+  //     secret: process.env.JWT_REFRESH_SECRET!,
+  //     expiresIn,
+  //   });
+  // }
+
+  async signRefreshToken(payload: any): Promise<string> {
+    const expiresIn = (process.env.JWT_REFRESH_EXPIRATION ||
+      '7d') as JwtSignOptions['expiresIn'];
+
+    //  Add a random identifier (jti) to force uniqueness
+    const extendedPayload = { ...payload, jti: crypto.randomUUID() };
+
+    return this.jwt.signAsync(extendedPayload, {
       secret: process.env.JWT_REFRESH_SECRET!,
+      expiresIn,
     });
   }
 
-  // ------------------ Token Persistence ------------------
-  async storeRefreshToken(userId: string, rawToken: string, expiresAt: Date) {
-    const hashed = await this.hash(rawToken);
+  //  Store refresh token in DB
+
+  async storeRefreshToken(userId: string, token: string, expiresAt: Date) {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
     await this.prisma.refreshToken.create({
-      data: { userId, hashed, expiresAt },
+      data: { userId, token, expiresAt },
     });
   }
-
-  // Revoke *all* tokens for a user (used in logoutAll)
-  async revokeAllForUser(userId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revoked: false },
-      data: { revoked: true, rotatedAt: new Date() },
-    });
-  }
-
-  // Revoke a *single* token (logout one session)
-  async revokeRefreshToken(rawToken: string): Promise<boolean> {
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { revoked: false },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-
-    for (const t of tokens) {
-      const valid = await this.verifyHash(t.hashed, rawToken);
-      if (valid) {
-        await this.prisma.refreshToken.update({
-          where: { id: t.id },
-          data: { revoked: true, rotatedAt: new Date() },
-        });
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  // Rotate refresh token (used in refresh)
+  //  Rotate refresh token (replace old one)
   async rotateRefreshToken(
     userId: string,
-    oldRaw: string,
-    newRaw: string,
-    newExpiresAt: Date,
-  ) {
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { userId, revoked: false },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+    oldToken: string,
+    newToken: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    // Delete old token first
+    const existing = await this.prisma.refreshToken.findFirst({
+      where: { userId, token: oldToken },
     });
 
-    let matchedId: string | null = null;
+    if (!existing) return false; // invalid or already rotated
 
-    for (const t of tokens) {
-      if (await this.verifyHash(t.hashed, oldRaw)) {
-        matchedId = t.id;
-        break;
-      }
-    }
-
-    if (!matchedId) return false;
-
-    await this.prisma.refreshToken.update({
-      where: { id: matchedId },
-      data: { revoked: true, rotatedAt: new Date() },
+    await this.prisma.refreshToken.delete({
+      where: { id: existing.id },
     });
 
-    const newHashed = await this.hash(newRaw);
     await this.prisma.refreshToken.create({
-      data: { userId, hashed: newHashed, expiresAt: newExpiresAt },
+      data: { userId, token: newToken, expiresAt },
     });
 
     return true;
+  }
+
+  //  Revoke a specific refresh token
+  async revokeRefreshToken(token: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { token } });
+  }
+
+  //  Revoke all refresh tokens for a user (logout-all)
+  async revokeAllForUser(userId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
+  //  Optional: Verify refresh token exists
+  async isRefreshTokenValid(userId: string, token: string): Promise<boolean> {
+    const exists = await this.prisma.refreshToken.findFirst({
+      where: { userId, token },
+    });
+    return !!exists;
   }
 }

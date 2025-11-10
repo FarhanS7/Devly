@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
+    "@nestjs/platform-socket.io": "^11.1.8",
+    "@nestjs/websockets": "^11.1.8",
+    "@prisma/client": "^6.19.0",
+    "bullmq": "^5.63.0",
+    "ioredis": "^5.8.2",
+    "prisma": "^6.19.0"
+  }
+}
