@@ -1,23 +1,49 @@
+// {
+//   "extends": "../../tsconfig.json",
+//   "compilerOptions": {
+//     "rootDir": "../../",
+//     "outDir": "./dist",
+//     "baseUrl": ".",
+//     "types": ["jest", "node"],
+//     "paths": {
+//       "@shared/*": ["../../shared/*"]
+//     },
+//     "module": "nodenext",
+//     "isolatedModules": true,
+//     "moduleResolution": "nodenext",
+//     "resolvePackageJsonExports": true,
+//     "esModuleInterop": true,
+//     "emitDecoratorMetadata": true,
+//     "experimentalDecorators": true,
+//     "allowJs": true,
+//     "skipLibCheck": true
+//   },
+//   "include": ["src/**/*", "test/**/*", "prisma/**/*"],
+//   "exclude": ["node_modules", "dist"]
+// }
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "../..",
+    "rootDir": "../../",
     "outDir": "./dist",
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "types": ["jest", "node"],
     "paths": {
-      "@shared/*": ["../../shared/*"]
+      "@shared/*": ["../../shared/*"],
+      "src/*": ["./src/*"]
     },
-    "module": "nodenext",
-    "isolatedModules": true,
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
+    "module": "commonjs",
+    "target": "es2017",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
     "esModuleInterop": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowJs": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false
   },
-  "include": ["src/**/*", "test/**/*", "prisma/**/*"],
+  "include": ["src/**/*", "test/**/*", "../../shared/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bull';
 
 /**
@@ -7,38 +7,57 @@ import type { Queue } from 'bull';
  * ---------------------
  * Unified producer responsible for sending all types of notification jobs
  * to the notification-service via Redis + BullMQ.
+ * Now fire-and-forget safe — won't hang if Redis is unavailable (e.g., in tests).
  */
 @Injectable()
 export class NotificationProducer {
+  private readonly logger = new Logger(NotificationProducer.name);
+
   constructor(@InjectQueue('notifications') private readonly queue: Queue) {}
 
   /**
    * Generic queue method (used internally by all specialized ones)
    */
-  private async enqueue(
+  private enqueue(
     type: 'FOLLOW' | 'LIKE' | 'COMMENT',
     payload: Record<string, any>,
-  ) {
-    await this.queue.add(
-      'notify',
-      { type, ...payload },
-      {
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
-    console.log(`📨 Queued ${type} notification`, payload);
+  ): void {
+    // Fire-and-forget + swallow connection errors (tests, local without Redis)
+    try {
+      this.queue
+        .add(
+          'notify',
+          { type, ...payload },
+          { removeOnComplete: true, removeOnFail: true },
+        )
+        .then(() => {
+          this.logger.debug(`📨 Queued ${type} notification`, payload);
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `⚠️ Queue unavailable (skipped ${type}): ${err.message}`,
+          );
+        });
+    } catch (err) {
+      if (err instanceof Error) {
+        this.logger.warn(`⚠️ Queue failed (skipped ${type}): ${err.message}`);
+      } else {
+        this.logger.warn(`⚠️ Queue failed (skipped ${type}): ${String(err)}`);
+      }
+
+      // this.logger.warn(`⚠️ Queue failed (skipped ${type}): ${err.message}`);
+    }
   }
 
   /**
    * Called when a user follows another user.
    */
-  async sendFollowNotification(
+  sendFollowNotification(
     followerId: string,
     targetId: string,
     followerHandle: string,
-  ) {
-    await this.enqueue('FOLLOW', {
+  ): void {
+    this.enqueue('FOLLOW', {
       actorId: followerId,
       recipientId: targetId,
       message: `${followerHandle} started following you`,
@@ -48,28 +67,40 @@ export class NotificationProducer {
   /**
    * Called when a user likes a post.
    */
-  async sendLikeNotification(
+  sendLikeNotification(
     actorId: string,
     recipientId: string,
     postId: string,
-  ) {
-    await this.enqueue('LIKE', {
+  ): void {
+    this.enqueue('LIKE', {
       actorId,
       recipientId,
       postId,
-      message: `Your post received a like `,
+      message: `Your post received a like`,
     });
   }
 
   /**
    * Called when a user comments on a post.
    */
+  // sendCommentNotification(
+  //   actorId: string,
+  //   recipientId: string,
+  //   postId: string,
+  // ): void {
+  //   this.enqueue('COMMENT', {
+  //     actorId,
+  //     recipientId,
+  //     postId,
+  //     message: `Someone commented on your post 💬`,
+  //   });
+  // }
   async sendCommentNotification(
     actorId: string,
     recipientId: string,
     postId: string,
   ) {
-    await this.enqueue('COMMENT', {
+    return this.enqueue('COMMENT', {
       actorId,
       recipientId,
       postId,

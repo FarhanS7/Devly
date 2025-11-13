@@ -20,7 +20,8 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 export class CommentsController {
   constructor(private readonly comments: CommentsService) {}
 
-  // Create a comment (top-level or reply)
+  // ---------------- CREATE ----------------
+  // Create a new comment (top-level or reply)
   @Post(':postId')
   async create(
     @Req() req: any,
@@ -30,7 +31,8 @@ export class CommentsController {
     return this.comments.create(req.user.sub, postId, dto);
   }
 
-  // Get comments for a post (cursor pagination + depth)
+  // ---------------- GET POST COMMENTS ----------------
+  // Returns nested comments (tree up to 'depth')
   @Get('post/:postId')
   async getForPost(
     @Param('postId') postId: string,
@@ -43,7 +45,8 @@ export class CommentsController {
     return this.comments.getForPost({ postId, cursor, limit, depth });
   }
 
-  // Get a comment thread (comment + nested replies)
+  // ---------------- GET THREAD ----------------
+  // Returns a comment and its nested replies
   @Get(':commentId/thread')
   async getThread(
     @Param('commentId') commentId: string,
@@ -53,7 +56,8 @@ export class CommentsController {
     return this.comments.getThread(commentId, depth ?? 3);
   }
 
-  // Update own comment
+  // ---------------- UPDATE ----------------
+  // Edit own comment
   @Patch(':commentId')
   async update(
     @Req() req: any,
@@ -63,7 +67,8 @@ export class CommentsController {
     return this.comments.update(req.user.sub, commentId, dto);
   }
 
-  // Soft-delete own comment
+  // ---------------- DELETE ----------------
+  // Soft delete own comment
   @Delete(':commentId')
   async softDelete(@Req() req: any, @Param('commentId') commentId: string) {
     return this.comments.softDelete(req.user.sub, commentId);

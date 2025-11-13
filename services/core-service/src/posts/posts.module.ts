@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { NotificationProducerModule } from 'src/notifications/notification.producer.module';
+import { CommentsModule } from '../comments/comments.module';
+import { NotificationProducerModule } from '../notifications/notification.producer.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { PostsController } from './posts.controller';
 import { PostsService } from './services/posts.service';
 
 @Module({
-  imports: [NotificationProducerModule],
+  imports: [NotificationProducerModule, CommentsModule], // <-- add CommentsModule
   controllers: [PostsController],
   providers: [PostsService, PrismaService],
   exports: [PostsService],

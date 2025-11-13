@@ -4,12 +4,14 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
-import { PrismaModule } from '@shared/prisma/prisma.module';
+// import { PrismaModule } from '../../../shared/prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { FollowsModule } from './follows/follows.module';
 import { PostsModule } from './posts/posts.module';
 import { UsersModule } from './users/users.module';
 
+import { PrismaModule } from 'prisma/prisma.module';
+import { CommentsModule } from './comments/comments.module';
 import { LoggerMiddleware } from './common/logger/logger.middleware';
 import { AppLogger } from './common/logger/logger.service';
 import { NotificationProducer } from './common/queues/notification.producer';
@@ -51,6 +53,7 @@ import { HealthController } from './health/health.controller';
     UsersModule,
     PostsModule,
     FollowsModule,
+    CommentsModule,
   ],
   controllers: [HealthController],
   providers: [

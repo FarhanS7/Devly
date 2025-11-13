@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { NotificationProducer } from '../../common/queues/notification.producer';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCommentDto } from '../dto/create-comment.dto';
 import { CreatePostDto } from '../dto/create-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 
@@ -30,6 +29,19 @@ export class PostsService {
         codeSnippet: dto.codeSnippet,
         authorId: userId,
       },
+      include: {
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
     });
   }
 
@@ -43,7 +55,14 @@ export class PostsService {
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: { createdAt: 'desc' },
       include: {
-        author: { select: { id: true, handle: true, name: true } },
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            avatarUrl: true, // ← added
+          },
+        },
         _count: { select: { likes: true, comments: true } },
       },
     });
@@ -62,11 +81,12 @@ export class PostsService {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
-        author: { select: { id: true, handle: true, name: true } },
-        comments: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            user: { select: { id: true, handle: true, name: true } },
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            avatarUrl: true, // ← added
           },
         },
         _count: { select: { likes: true, comments: true } },
@@ -85,6 +105,19 @@ export class PostsService {
     return this.prisma.post.update({
       where: { id: postId },
       data: dto,
+      include: {
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
     });
   }
 
@@ -98,7 +131,7 @@ export class PostsService {
     return { success: true };
   }
 
-  // ---------------- LIKE / UNLIKE + Notification ----------------
+  // ---------------- LIKE / UNLIKE ----------------
   async toggleLike(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -118,41 +151,36 @@ export class PostsService {
 
     // Don’t notify if user liked their own post
     if (post.authorId !== userId) {
-      await this.notifications.sendLikeNotification(
-        userId,
-        post.authorId,
-        postId,
-      );
+      try {
+        this.notifications.sendLikeNotification(userId, post.authorId, postId);
+      } catch {}
     }
 
     return { liked: true };
   }
 
-  // ---------------- COMMENT + Notification ----------------
-  async addComment(userId: string, postId: string, dto: CreateCommentDto) {
-    if (!dto.text?.trim()) {
-      throw new BadRequestException('Comment text is required');
-    }
-
-    const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Post not found');
-
-    const comment = await this.prisma.comment.create({
-      data: { text: dto.text, userId, postId },
-      include: {
-        user: { select: { id: true, handle: true, name: true } },
-      },
+  // ---------------- POSTS BY HANDLE ----------------
+  async getPostsByHandle(handle: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { handle },
     });
 
-    // Don’t notify if user commented on their own post
-    if (post.authorId !== userId) {
-      await this.notifications.sendCommentNotification(
-        userId,
-        post.authorId,
-        postId,
-      );
-    }
+    if (!user) throw new NotFoundException('User not found');
 
-    return comment;
+    return this.prisma.post.findMany({
+      where: { authorId: user.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        author: {
+          select: {
+            id: true,
+            handle: true,
+            name: true,
+            avatarUrl: true, // ← added
+          },
+        },
+        _count: { select: { likes: true, comments: true } },
+      },
+    });
   }
 }

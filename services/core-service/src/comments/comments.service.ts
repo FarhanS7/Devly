@@ -11,9 +11,9 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 
 type GetCommentsParams = {
   postId: string;
-  cursor?: string; // cursor = comment.id
-  limit?: number; // 1..50
-  depth?: number; // nesting depth to build (default 2)
+  cursor?: string;
+  limit?: number;
+  depth?: number;
 };
 
 @Injectable()
@@ -23,27 +23,23 @@ export class CommentsService {
     private readonly notifications: NotificationProducer,
   ) {}
 
-  // ---------------- CREATE (top-level or reply) ----------------
+  // ---------------- CREATE ----------------
   async create(userId: string, postId: string, dto: CreateCommentDto) {
     if (!dto.content?.trim()) throw new BadRequestException('Content required');
 
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
 
-    let parent: { id: string; postId: string; isDeleted: boolean } | null =
-      null;
-
     if (dto.parentId) {
-      parent = await this.prisma.comment.findUnique({
+      const parent = await this.prisma.comment.findUnique({
         where: { id: dto.parentId },
-        select: { id: true, postId: true, isDeleted: true },
+        select: { id: true, postId: true },
       });
       if (!parent) throw new NotFoundException('Parent comment not found');
-      if (parent.postId !== postId) {
+      if (parent.postId !== postId)
         throw new BadRequestException(
           'Parent comment belongs to a different post',
         );
-      }
     }
 
     const created = await this.prisma.comment.create({
@@ -58,38 +54,38 @@ export class CommentsService {
       },
     });
 
-    // Notifications (best effort; never block)
+    // --- Notify post author or parent author ---
     try {
-      if (!dto.parentId) {
-        if (post.authorId !== userId) {
-          this.notifications
-            .sendCommentNotification(userId, post.authorId, postId)
-            .catch(() => {});
-        }
-      } else {
+      if (!dto.parentId && post.authorId !== userId) {
+        await this.notifications.sendCommentNotification(
+          userId,
+          post.authorId,
+          postId,
+        );
+      } else if (dto.parentId) {
         const parentAuthor = await this.prisma.comment.findUnique({
           where: { id: dto.parentId },
           select: { authorId: true },
         });
         if (parentAuthor && parentAuthor.authorId !== userId) {
-          this.notifications
-            .sendCommentNotification(userId, parentAuthor.authorId, postId)
-            .catch(() => {});
+          await this.notifications.sendCommentNotification(
+            userId,
+            parentAuthor.authorId,
+            postId,
+          );
         }
       }
     } catch {
-      // ignore queue errors in tests
+      // ignore queue errors in dev/test
     }
 
     return created;
   }
 
-  // ---------------- READ (paginated) ----------------
-  // Returns a tree up to 'depth'. Soft-deleted nodes return masked content.
+  // ---------------- GET COMMENTS ----------------
   async getForPost(params: GetCommentsParams) {
     const limit = Math.min(Math.max(params.limit ?? 10, 1), 50);
 
-    // We fetch in flat form then build a tree in memory.
     const flat = await this.prisma.comment.findMany({
       where: { postId: params.postId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -106,14 +102,9 @@ export class CommentsService {
       nextCursor = next!.id;
     }
 
+    // Mask deleted comments
     const masked = flat.map((c) =>
-      c.isDeleted
-        ? {
-            ...c,
-            content: '[deleted]',
-            author: c.author, // keep author reference for thread context
-          }
-        : c,
+      c.isDeleted ? { ...c, content: '[deleted]' } : c,
     );
 
     const depth = Math.max(params.depth ?? 2, 1);
@@ -122,7 +113,7 @@ export class CommentsService {
     return { items: tree, nextCursor };
   }
 
-  // ---------------- READ (thread by comment) ----------------
+  // ---------------- GET THREAD ----------------
   async getThread(commentId: string, depth = 3) {
     const root = await this.prisma.comment.findUnique({
       where: { id: commentId },
@@ -143,7 +134,6 @@ export class CommentsService {
     const map = new Map(flat.map((c) => [c.id, c]));
     const collect = (node: any, level: number): any => {
       const self = node.isDeleted ? { ...node, content: '[deleted]' } : node;
-
       if (level >= depth) return { ...self, replies: [] };
 
       const replies = flat
@@ -166,16 +156,11 @@ export class CommentsService {
       throw new ForbiddenException('Not your comment');
     if (comment.isDeleted)
       throw new BadRequestException('Cannot edit a deleted comment');
-
-    if (!dto.content || !dto.content.trim()) {
-      throw new BadRequestException('Content required');
-    }
+    if (!dto.content?.trim()) throw new BadRequestException('Content required');
 
     return this.prisma.comment.update({
       where: { id: commentId },
-      data: {
-        content: dto.content,
-      },
+      data: { content: dto.content },
       include: {
         author: { select: { id: true, handle: true, name: true } },
       },
@@ -190,7 +175,7 @@ export class CommentsService {
     if (!comment) throw new NotFoundException('Comment not found');
     if (comment.authorId !== userId)
       throw new ForbiddenException('Not your comment');
-    if (comment.isDeleted) return { success: true }; // idempotent
+    if (comment.isDeleted) return { success: true };
 
     await this.prisma.comment.update({
       where: { id: commentId },
@@ -211,10 +196,7 @@ export class CommentsService {
 
     const attach = (parentId: string | null, level: number): any[] => {
       const nodes = byParent.get(parentId) ?? [];
-      if (level >= maxDepth) {
-        // stop here; strip deeper children
-        return nodes.map((n) => ({ ...n, replies: [] }));
-      }
+      if (level >= maxDepth) return nodes.map((n) => ({ ...n, replies: [] }));
       return nodes.map((n) => ({
         ...n,
         replies: attach(n.id, level + 1),

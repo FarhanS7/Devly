@@ -7,12 +7,12 @@ export class LoginDto {
     description: 'User email address used for login.',
   })
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     example: 'strongpassword123',
     description: 'User password (minimum 6 characters).',
   })
   @MinLength(6)
-  password: string;
+  password!: string;
 }

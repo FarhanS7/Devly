@@ -53,6 +53,22 @@ export class UsersService {
     return updated;
   }
 
+  async updateAvatar(userId: string, avatarUrl: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      select: {
+        id: true,
+        email: true,
+        handle: true,
+        avatarUrl: true,
+        name: true,
+        bio: true,
+        location: true,
+      },
+    });
+  }
+
   async getUserByHandle(handle: string) {
     const user = await this.prisma.user.findUnique({
       where: { handle },

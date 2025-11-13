@@ -7,5 +7,5 @@ export class RefreshTokenDto {
     description: 'The refresh token to generate a new access token.',
   })
   @IsNotEmpty()
-  refreshToken: string;
+  refreshToken!: string;
 }
