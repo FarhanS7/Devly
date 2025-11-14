@@ -21,6 +21,7 @@ export class UsersService {
         bio: true,
         location: true,
         createdAt: true,
+        avatarUrl: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
@@ -80,6 +81,7 @@ export class UsersService {
         bio: true,
         location: true,
         createdAt: true,
+        avatarUrl: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
