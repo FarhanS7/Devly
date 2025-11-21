@@ -22,7 +22,7 @@ export class PostsService {
       throw new BadRequestException('Post content is required');
     }
 
-    return this.prisma.post.create({
+    const post = await this.prisma.post.create({
       data: {
         content: dto.content,
         imageUrl: dto.imageUrl,
@@ -43,10 +43,16 @@ export class PostsService {
         },
       },
     });
+
+    // New post is obviously not liked yet by the author
+    return { ...post, isLiked: false };
   }
 
   // ---------------- FEED ----------------
-  async getFeed(params?: { cursor?: string; limit?: number }) {
+  async getFeed(
+    params?: { cursor?: string; limit?: number },
+    currentUserId?: string,
+  ) {
     const limit = Math.min(Math.max(params?.limit ?? 10, 1), 50);
     const cursor = params?.cursor;
 
@@ -60,10 +66,16 @@ export class PostsService {
             id: true,
             handle: true,
             name: true,
-            avatarUrl: true, // ← added
+            avatarUrl: true,
           },
         },
         _count: { select: { likes: true, comments: true } },
+        ...(currentUserId && {
+          likes: {
+            where: { userId: currentUserId },
+            select: { id: true },
+          },
+        }),
       },
     });
 
@@ -73,11 +85,19 @@ export class PostsService {
       nextCursor = next!.id;
     }
 
-    return { items: posts, nextCursor };
+    const items = posts.map((p: any) => {
+      const { likes, ...rest } = p;
+      return {
+        ...rest,
+        isLiked: !!(likes && likes.length),
+      };
+    });
+
+    return { items, nextCursor };
   }
 
   // ---------------- SINGLE POST ----------------
-  async getPostById(postId: string) {
+  async getPostById(postId: string, currentUserId?: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
@@ -86,23 +106,38 @@ export class PostsService {
             id: true,
             handle: true,
             name: true,
-            avatarUrl: true, // ← added
+            avatarUrl: true,
           },
         },
         _count: { select: { likes: true, comments: true } },
+        ...(currentUserId && {
+          likes: {
+            where: { userId: currentUserId },
+            select: { id: true },
+          },
+        }),
       },
     });
     if (!post) throw new NotFoundException('Post not found');
-    return post;
+
+    const { likes, ...rest } = post as any;
+    return {
+      ...rest,
+      isLiked: !!(likes && likes.length),
+    };
   }
 
   // ---------------- UPDATE ----------------
   async updatePost(userId: string, postId: string, dto: UpdatePostDto) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Post not found');
-    if (post.authorId !== userId) throw new ForbiddenException('Not your post');
+    const existing = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+    if (!existing) throw new NotFoundException('Post not found');
+    if (existing.authorId !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
 
-    return this.prisma.post.update({
+    const post = await this.prisma.post.update({
       where: { id: postId },
       data: dto,
       include: {
@@ -117,8 +152,18 @@ export class PostsService {
         _count: {
           select: { likes: true, comments: true },
         },
+        likes: {
+          where: { userId },
+          select: { id: true },
+        },
       },
     });
+
+    const { likes, ...rest } = post as any;
+    return {
+      ...rest,
+      isLiked: !!(likes && likes.length),
+    };
   }
 
   // ---------------- DELETE ----------------
@@ -131,7 +176,7 @@ export class PostsService {
     return { success: true };
   }
 
-  // ---------------- LIKE / UNLIKE ----------------
+  // ---------------- LIKE / UNLIKE + Notification ----------------
   async toggleLike(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -149,25 +194,26 @@ export class PostsService {
 
     await this.prisma.like.create({ data: { userId, postId } });
 
-    // Don’t notify if user liked their own post
     if (post.authorId !== userId) {
       try {
         this.notifications.sendLikeNotification(userId, post.authorId, postId);
-      } catch {}
+      } catch {
+        // ignore Redis/queue errors
+      }
     }
 
     return { liked: true };
   }
 
   // ---------------- POSTS BY HANDLE ----------------
-  async getPostsByHandle(handle: string) {
+  async getPostsByHandle(handle: string, currentUserId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { handle },
     });
 
     if (!user) throw new NotFoundException('User not found');
 
-    return this.prisma.post.findMany({
+    const posts = await this.prisma.post.findMany({
       where: { authorId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -176,11 +222,25 @@ export class PostsService {
             id: true,
             handle: true,
             name: true,
-            avatarUrl: true, // ← added
+            avatarUrl: true,
           },
         },
         _count: { select: { likes: true, comments: true } },
+        ...(currentUserId && {
+          likes: {
+            where: { userId: currentUserId },
+            select: { id: true },
+          },
+        }),
       },
+    });
+
+    return posts.map((p: any) => {
+      const { likes, ...rest } = p;
+      return {
+        ...rest,
+        isLiked: !!(likes && likes.length),
+      };
     });
   }
 }

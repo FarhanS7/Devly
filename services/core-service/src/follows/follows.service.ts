@@ -76,21 +76,29 @@ export class FollowsService {
 
   // ---------------- FOLLOWER / FOLLOWING LISTS ----------------
   async getFollowers(userId: string) {
-    return this.prisma.follow.findMany({
+    const followers = await this.prisma.follow.findMany({
       where: { followingId: userId },
       include: {
-        follower: { select: { id: true, handle: true, name: true } },
+        follower: {
+          select: { id: true, handle: true, name: true, avatarUrl: true },
+        },
       },
     });
+
+    return followers.map((f) => f.follower);
   }
 
   async getFollowing(userId: string) {
-    return this.prisma.follow.findMany({
+    const following = await this.prisma.follow.findMany({
       where: { followerId: userId },
       include: {
-        following: { select: { id: true, handle: true, name: true } },
+        following: {
+          select: { id: true, handle: true, name: true, avatarUrl: true },
+        },
       },
     });
+
+    return following.map((f) => f.following);
   }
 
   // ---------------- COUNTS & RELATION HELPERS ----------------

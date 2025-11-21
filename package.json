@@ -1,4 +1,5 @@
 {
+  "type": "commonjs",
   "devDependencies": {
     "@nestjs/common": "^11.1.8",
     "@prisma/client": "^6.18.0",

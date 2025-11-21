@@ -18,7 +18,9 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useStaticAssets(join(process.cwd(), 'uploads'));
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   //  Swagger setup
   const config = new DocumentBuilder()

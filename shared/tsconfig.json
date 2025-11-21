@@ -1,21 +1,22 @@
 // {
-//   "extends": "../services/core-service/tsconfig.json",
 //   "compilerOptions": {
+//     "composite": true,
 //     "rootDir": "./",
-//     "baseUrl": "./",
+//     "outDir": "../dist/shared",
+//     "target": "ES2021",
+//     "module": "commonjs",
+//     "esModuleInterop": true,
 //     "skipLibCheck": true,
-//     "composite": true
+//     "strict": true
 //   },
-//   "include": ["./**/*.ts"],
-//   "exclude": ["node_modules", "dist"]
+//   "include": ["**/*.ts"]
 // }
-
 {
   "compilerOptions": {
     "composite": true,
     "rootDir": "./",
     "outDir": "../dist/shared",
-    "target": "ES2021",
+    "target": "es2017",
     "module": "commonjs",
     "esModuleInterop": true,
     "skipLibCheck": true,
