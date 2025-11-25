@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+////////////////////////////////////////////////////
+// 🧑 USER MODEL
+////////////////////////////////////////////////////
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  handle       String    @unique
+  passwordHash String
+  name         String?
+  bio          String?
+  location     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt
+  avatarUrl    String?
+
+  // Relations
+  posts         Post[]
+  likes         Like[]
+  comments      Comment[]
+  refreshTokens RefreshToken[]
+
+  // Follow relations
+  followers Follow[] @relation("Followers")
+  following Follow[] @relation("Following")
+
+  // Chat relations
+  conversations ConversationParticipant[]
+  messages      Message[]
+}
+
+////////////////////////////////////////////////////
+// 🔐 REFRESH TOKENS (for Auth)
+////////////////////////////////////////////////////
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  hashed    String?
+  revoked   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  rotatedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+////////////////////////////////////////////////////
+// 📝 POSTS
+////////////////////////////////////////////////////
+model Post {
+  id          String   @id @default(uuid())
+  content     String
+  imageUrl    String?
+  codeSnippet String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  authorId    String
+
+  // Relations
+  author   User      @relation(fields: [authorId], references: [id])
+  likes    Like[]
+  comments Comment[]
+
+  @@index([authorId])
+}
+
+////////////////////////////////////////////////////
+// ❤️ LIKES
+////////////////////////////////////////////////////
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+////////////////////////////////////////////////////
+// 💬 COMMENTS
+////////////////////////////////////////////////////
+
+model Comment {
+  id         String    @id @default(uuid())
+  content    String
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  authorId   String
+  postId     String
+  parentId   String?
+
+  author   User      @relation(fields: [authorId], references: [id])
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentToReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentToReplies")
+}
+
+
+////////////////////////////////////////////////////
+// 🧑‍🤝‍🧑 FOLLOW SYSTEM
+////////////////////////////////////////////////////
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Following", fields: [followerId], references: [id])
+  following User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+////////////////////////////////////////////////////
+// 💬 CHAT SYSTEM
+////////////////////////////////////////////////////
+model Conversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  lastReadMessageId String? 
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  content        String?
+  attachmentUrl  String?
+  createdAt      DateTime @default(now())
+  conversationId String
+  senderId       String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation(fields: [senderId], references: [id])
+}
