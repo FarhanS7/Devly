@@ -17,7 +17,7 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  const port = process.env.PORT || 3003; // Different port from core-service (3000)
+  const port = process.env.PORT || 3004; 
   await app.listen(port);
   console.log(`🚀 Chat service running on http://localhost:${port}`);
 }

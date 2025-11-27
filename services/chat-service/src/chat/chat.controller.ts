@@ -1,10 +1,12 @@
-import { Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { ChatService } from './chat.service';
 
 @Controller('chat')
+@UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -24,13 +26,24 @@ export class ChatController {
     return { url: `/uploads/chat/${file.filename}` };
   }
 
-  @Get('conversations/:userId')
-  async getConversations(@Param('userId') userId: string) {
-    return this.chatService.getUserConversations(userId);
+  @Get('conversations')
+  async getConversations(@Request() req: any) {
+    return this.chatService.getUserConversations(req.user.sub);
   }
 
-  @Get(':conversationId/messages/:userId')
-  async getMessages(@Param('conversationId') conversationId: string, @Param('userId') userId: string) {
-    return this.chatService.getMessages(conversationId, userId);
+  @Get(':conversationId/messages')
+  async getMessages(@Param('conversationId') conversationId: string, @Request() req: any) {
+    return this.chatService.getMessages(conversationId, req.user.sub);
+  }
+
+  @Post('conversations/start')
+  async startConversation(@Request() req: any, @Body() body: { recipientId: string }) {
+    return this.chatService.findOrCreateConversation(req.user.sub, body.recipientId);
+  }
+
+  @Get('unread-count')
+  async getUnreadCount(@Request() req: any) {
+    const count = await this.chatService.getUnreadCount(req.user.sub);
+    return { unreadCount: count };
   }
 }

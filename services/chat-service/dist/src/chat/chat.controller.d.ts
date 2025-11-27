@@ -5,7 +5,7 @@ export declare class ChatController {
     uploadFile(file: Express.Multer.File): {
         url: string;
     };
-    getConversations(userId: string): Promise<({
+    getConversations(req: any): Promise<({
         messages: {
             id: string;
             content: string | null;
@@ -32,7 +32,7 @@ export declare class ChatController {
         createdAt: Date;
         updatedAt: Date;
     })[]>;
-    getMessages(conversationId: string, userId: string): Promise<({
+    getMessages(conversationId: string, req: any): Promise<({
         sender: {
             id: string;
             handle: string;
@@ -47,4 +47,36 @@ export declare class ChatController {
         conversationId: string;
         senderId: string;
     })[]>;
+    startConversation(req: any, body: {
+        recipientId: string;
+    }): Promise<{
+        messages: {
+            id: string;
+            content: string | null;
+            attachmentUrl: string | null;
+            createdAt: Date;
+            conversationId: string;
+            senderId: string;
+        }[];
+        participants: ({
+            user: {
+                id: string;
+                handle: string;
+                name: string;
+                avatarUrl: string;
+            };
+        } & {
+            conversationId: string;
+            userId: string;
+            joinedAt: Date;
+            lastReadMessageId: string | null;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    getUnreadCount(req: any): Promise<{
+        unreadCount: number;
+    }>;
 }

@@ -70,4 +70,33 @@ export declare class ChatService {
         joinedAt: Date;
         lastReadMessageId: string | null;
     }>;
+    findOrCreateConversation(userId1: string, userId2: string): Promise<{
+        messages: {
+            id: string;
+            content: string | null;
+            attachmentUrl: string | null;
+            createdAt: Date;
+            conversationId: string;
+            senderId: string;
+        }[];
+        participants: ({
+            user: {
+                id: string;
+                handle: string;
+                name: string;
+                avatarUrl: string;
+            };
+        } & {
+            conversationId: string;
+            userId: string;
+            joinedAt: Date;
+            lastReadMessageId: string | null;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    getUnreadCount(userId: string): Promise<number>;
+    getConversationUnreadCount(conversationId: string, userId: string): Promise<number>;
 }

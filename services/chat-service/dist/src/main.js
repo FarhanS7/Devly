@@ -13,7 +13,7 @@ async function bootstrap() {
     app.useStaticAssets((0, path_1.join)(process.cwd(), 'uploads'), {
         prefix: '/uploads/',
     });
-    const port = process.env.PORT || 3003;
+    const port = process.env.PORT || 3004;
     await app.listen(port);
     console.log(`🚀 Chat service running on http://localhost:${port}`);
 }
