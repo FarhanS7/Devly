@@ -105,10 +105,10 @@ async function main() {
   // --- Comments ---
   await prisma.comment.createMany({
     data: [
-      { userId: bob.id, postId: p1.id, text: 'Nice!' },
-      { userId: carol.id, postId: p1.id, text: 'Welcome 🎉' },
-      { userId: alice.id, postId: p2.id, text: 'Agree!' },
-      { userId: eve.id, postId: p3.id, text: 'So true.' },
+      { authorId: bob.id, postId: p1.id, content: 'Nice!' },
+      { authorId: carol.id, postId: p1.id, content: 'Welcome 🎉' },
+      { authorId: alice.id, postId: p2.id, content: 'Agree!' },
+      { authorId: eve.id, postId: p3.id, content: 'So true.' },
     ],
   });
 

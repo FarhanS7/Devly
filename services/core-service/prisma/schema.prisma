@@ -32,6 +32,10 @@ model User {
   // Follow relations
   followers Follow[] @relation("Followers")
   following Follow[] @relation("Following")
+
+  // Chat relations
+  conversations ConversationParticipant[]
+  messages      Message[]
 }
 
 ////////////////////////////////////////////////////
@@ -125,4 +129,40 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+////////////////////////////////////////////////////
+// 💬 CHAT SYSTEM
+////////////////////////////////////////////////////
+model Conversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  lastReadMessageId String? 
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  content        String?
+  attachmentUrl  String?
+  createdAt      DateTime @default(now())
+  conversationId String
+  senderId       String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation(fields: [senderId], references: [id])
 }
