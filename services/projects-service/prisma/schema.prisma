@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+////////////////////////////////////////////////////
+// 🧑 USER MODEL (Reference only, managed by core-service)
+////////////////////////////////////////////////////
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  handle    String   @unique
+  name      String?
+  avatarUrl String?
+
+  // Project Management
+  ownedProjects  Project[]
+  createdTasks   Task[]         @relation("TaskCreator")
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  taskActivities TaskActivity[]
+}
+
+////////////////////////////////////////////////////
+// 🚀 PROJECT MANAGEMENT
+////////////////////////////////////////////////////
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User   @relation(fields: [ownerId], references: [id])
+  tasks Task[]
+
+  @@index([ownerId])
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  projectId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  creatorId   String
+  assigneeId  String?
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator  User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  activities TaskActivity[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+}
+
+model TaskActivity {
+  id        String   @id @default(uuid())
+  taskId    String
+  actorId   String
+  type      String // "STATUS_CHANGED", "COMMENT_ADDED", "ASSIGNED", etc.
+  payload   Json? // details (oldStatus, newStatus, etc.)
+  createdAt DateTime @default(now())
+
+  task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([taskId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
