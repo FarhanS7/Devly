@@ -33,9 +33,16 @@ model User {
   followers Follow[] @relation("Followers")
   following Follow[] @relation("Following")
 
-  // Chat relations
+  // Chat relations (1-on-1 DMs)
   conversations ConversationParticipant[]
   messages      Message[]
+
+  // Teams & Channels relations
+  ownedTeams         Team[]            @relation("TeamOwner")
+  teamMemberships    TeamMember[]
+  channelMemberships ChannelMember[]
+  channelMessages    ChannelMessage[]  @relation("ChannelMessageSender")
+  messageReactions   MessageReaction[]
 }
 
 ////////////////////////////////////////////////////
@@ -97,22 +104,21 @@ model Like {
 ////////////////////////////////////////////////////
 
 model Comment {
-  id         String    @id @default(uuid())
-  content    String
-  isDeleted  Boolean   @default(false)
-  deletedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  authorId   String
-  postId     String
-  parentId   String?
+  id        String    @id @default(uuid())
+  content   String
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  authorId  String
+  postId    String
+  parentId  String?
 
-  author   User      @relation(fields: [authorId], references: [id])
-  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent   Comment?  @relation("CommentToReplies", fields: [parentId], references: [id])
-  replies  Comment[] @relation("CommentToReplies")
+  author  User      @relation(fields: [authorId], references: [id])
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentToReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentToReplies")
 }
-
 
 ////////////////////////////////////////////////////
 // 🧑‍🤝‍🧑 FOLLOW SYSTEM
@@ -144,10 +150,10 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  conversationId String
-  userId         String
-  joinedAt       DateTime @default(now())
-  lastReadMessageId String? 
+  conversationId    String
+  userId            String
+  joinedAt          DateTime @default(now())
+  lastReadMessageId String?
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
@@ -165,4 +171,118 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation(fields: [senderId], references: [id])
+}
+
+////////////////////////////////////////////////////
+// 👥 TEAMS & CHANNELS SYSTEM
+////////////////////////////////////////////////////
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  avatarUrl   String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner    User         @relation("TeamOwner", fields: [ownerId], references: [id])
+  members  TeamMember[]
+  channels Channel[]
+
+  @@index([ownerId])
+  @@index([slug])
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Channel {
+  id          String      @id @default(uuid())
+  teamId      String
+  name        String
+  slug        String
+  description String?
+  type        ChannelType @default(PUBLIC)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  members  ChannelMember[]
+  messages ChannelMessage[]
+
+  @@unique([teamId, slug])
+  @@index([teamId])
+}
+
+enum ChannelType {
+  PUBLIC
+  PRIVATE
+}
+
+model ChannelMember {
+  id                String   @id @default(uuid())
+  channelId         String
+  userId            String
+  joinedAt          DateTime @default(now())
+  lastReadMessageId String?
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+model ChannelMessage {
+  id            String   @id @default(uuid())
+  channelId     String
+  senderId      String
+  content       String?
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  parentId      String? // For threads
+
+  channel   Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender    User              @relation("ChannelMessageSender", fields: [senderId], references: [id])
+  parent    ChannelMessage?   @relation("MessageThread", fields: [parentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  replies   ChannelMessage[]  @relation("MessageThread")
+  reactions MessageReaction[]
+
+  @@index([channelId])
+  @@index([senderId])
+  @@index([parentId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message ChannelMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
