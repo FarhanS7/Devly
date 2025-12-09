@@ -14,14 +14,18 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   handle    String   @unique
-  name      String?
-  avatarUrl String?
+  name      String?  // Denormalized Copy (References core-service)
+  avatarUrl String?  // Denormalized Copy (References core-service)
 
   // Project Management
-  ownedProjects  Project[]
-  createdTasks   Task[]         @relation("TaskCreator")
-  assignedTasks  Task[]         @relation("TaskAssignee")
-  taskActivities TaskActivity[]
+  ownedProjects      Project[]
+  createdTasks       Task[]          @relation("TaskCreator")
+  assignedTasks      Task[]          @relation("TaskAssignee")
+  taskActivities     TaskActivity[]
+  projectMemberships ProjectMember[]
+  projectNotes       ProjectNote[]
+  uploadedFiles      ProjectFile[]
+  activityLogs       ActivityLog[]
 }
 
 ////////////////////////////////////////////////////
@@ -29,47 +33,81 @@ model User {
 ////////////////////////////////////////////////////
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String          @id @default(uuid())
   name        String
   description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      ProjectStatus   @default(NOT_STARTED)
+  priority    ProjectPriority @default(MEDIUM)
+  tags        String[]        @default([])
+  isArchived  Boolean         @default(false)
   ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  owner User   @relation(fields: [ownerId], references: [id])
-  tasks Task[]
+  owner      User            @relation(fields: [ownerId], references: [id])
+  tasks      Task[]
+  members    ProjectMember[]
+  notes      ProjectNote[]
+  files      ProjectFile[]
+  activities ActivityLog[]
 
   @@index([ownerId])
 }
 
+enum ProjectStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+////////////////////////////////////////////////////
+// ✅ TASK MANAGEMENT
+////////////////////////////////////////////////////
+
 model Task {
-  id          String       @id @default(uuid())
-  title       String
-  description String?
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
-  projectId   String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  creatorId   String
-  assigneeId  String?
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  status       TaskStatus   @default(TODO)
+  priority     TaskPriority @default(MEDIUM)
+  deadline     DateTime?
+  tags         String[]     @default([])
+  attachments  String[]     @default([])
+  projectId    String
+  creatorId    String
+  assigneeId   String?
+  parentTaskId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator  User    @relation("TaskCreator", fields: [creatorId], references: [id])
-  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator    User           @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee   User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  parentTask Task?          @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks   Task[]         @relation("SubTasks")
   activities TaskActivity[]
 
   @@index([projectId])
   @@index([assigneeId])
+  @@index([parentTaskId])
 }
 
 model TaskActivity {
   id        String   @id @default(uuid())
   taskId    String
   actorId   String
-  type      String // "STATUS_CHANGED", "COMMENT_ADDED", "ASSIGNED", etc.
-  payload   Json? // details (oldStatus, newStatus, etc.)
+  type      String
+  payload   Json?
   createdAt DateTime @default(now())
 
   task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -90,4 +128,85 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+////////////////////////////////////////////////////
+// 👥 PROJECT MEMBERS & ROLES
+////////////////////////////////////////////////////
+
+model ProjectMember {
+  id        String     @id @default(uuid())
+  projectId String
+  userId    String
+  role      MemberRole @default(VIEWER)
+  joinedAt  DateTime   @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+}
+
+enum MemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+////////////////////////////////////////////////////
+// 📝 PROJECT NOTES
+////////////////////////////////////////////////////
+
+model ProjectNote {
+  id        String   @id @default(uuid())
+  projectId String
+  title     String
+  content   Json
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [createdBy], references: [id])
+
+  @@index([projectId])
+}
+
+////////////////////////////////////////////////////
+// 📁 PROJECT FILES
+////////////////////////////////////////////////////
+
+model ProjectFile {
+  id         String   @id @default(uuid())
+  projectId  String
+  fileName   String
+  url        String
+  size       Int
+  mimeType   String
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploadedBy], references: [id])
+
+  @@index([projectId])
+}
+
+////////////////////////////////////////////////////
+// 📊 ACTIVITY LOG
+////////////////////////////////////////////////////
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
 }

@@ -1,0 +1,72 @@
+services:
+  # ===========================================
+  # 🧩 Core Service
+  # ===========================================
+  - type: web
+    name: devconnect-core
+    env: node
+    plan: free
+    rootDir: services/core-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # ===========================================
+  # 💬 Chat Service
+  # ===========================================
+  - type: web
+    name: devconnect-chat
+    env: node
+    plan: free
+    rootDir: services/chat-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # ===========================================
+  # 🚀 Projects Service
+  # ===========================================
+  - type: web
+    name: devconnect-projects
+    env: node
+    plan: free
+    rootDir: services/projects-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # ===========================================
+  # 🔔 Notification Service
+  # ===========================================
+  - type: web
+    name: devconnect-notifications
+    env: node
+    plan: free
+    rootDir: services/notification-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: NODE_ENV
+        value: production

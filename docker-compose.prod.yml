@@ -1,0 +1,149 @@
+version: "3.9"
+
+# ===========================================
+# 🏭 PRODUCTION OVERRIDES
+# ===========================================
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  # ===========================================
+  # 🐘 PostgreSQL - Production Config
+  # ===========================================
+  postgres:
+    restart: always
+    ports: []  # Don't expose database port in production
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password  # Use Docker secrets
+    # secrets:
+    #   - db_password
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ===========================================
+  # 🔴 Redis - Production Config
+  # ===========================================
+  redis:
+    restart: always
+    ports: []  # Don't expose Redis port in production
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # ===========================================
+  # 🧩 Core Service - Production Config
+  # ===========================================
+  core-service:
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/devconnect?schema=public&connection_limit=20&pool_timeout=20
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Override CORS in production
+      - CORS_ORIGIN=${FRONTEND_URL}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+      replicas: 2  # Run 2 instances for high availability
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # 💬 Chat Service - Production Config
+  # ===========================================
+  chat-service:
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/devconnect?schema=public&connection_limit=20&pool_timeout=20
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=${FRONTEND_URL}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+      replicas: 2  # Run 2 instances for high availability
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # 🚀 Projects Service - Production Config
+  # ===========================================
+  projects-service:
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/devconnect?schema=public&connection_limit=20&pool_timeout=20
+      - CORS_ORIGIN=${FRONTEND_URL}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      replicas: 2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # 🔔 Notification Service - Production Config
+  # ===========================================
+  notification-service:
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/devconnect?schema=public&connection_limit=10&pool_timeout=20
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=${FRONTEND_URL}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Uncomment to use Docker secrets for sensitive data
+# secrets:
+#   db_password:
+#     file: ./secrets/db_password.txt

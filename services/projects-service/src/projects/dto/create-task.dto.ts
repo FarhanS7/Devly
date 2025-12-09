@@ -1,5 +1,5 @@
 import { TaskPriority, TaskStatus } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -21,4 +21,22 @@ export class CreateTaskDto {
   @IsUUID()
   @IsOptional()
   assigneeId?: string;
+
+  @IsDateString()
+  @IsOptional()
+  deadline?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  attachments?: string[];
+
+  @IsUUID()
+  @IsOptional()
+  parentTaskId?: string;
 }

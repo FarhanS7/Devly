@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 // @ts-ignore
 import { TaskStatus } from '@prisma/client';
+import { EventsService } from '../../events/events.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
@@ -17,7 +18,10 @@ import { UpdateTaskDto } from '../dto/update-task.dto';
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   // ---------------- PROJECTS ----------------
 
@@ -35,6 +39,14 @@ export class ProjectsService {
     });
 
     this.logger.log(`Project created: ${project.id}`);
+
+    // Emit real-time event
+    this.eventsService.emitProjectCreated({
+      projectId: project.id,
+      projectName: project.name,
+      actorId: userId,
+    });
+
     return project;
   }
 
@@ -133,10 +145,20 @@ export class ProjectsService {
     }
 
     this.logger.log(`Updating project ${projectId}`);
-    return this.prisma.project.update({
+    const updated = await this.prisma.project.update({
       where: { id: projectId },
       data: dto,
     });
+
+    // Emit real-time event
+    this.eventsService.emitProjectUpdated({
+      projectId,
+      projectName: updated.name,
+      actorId: userId,
+      changes: dto,
+    });
+
+    return updated;
   }
 
   async deleteProject(userId: string, projectId: string) {
@@ -151,6 +173,14 @@ export class ProjectsService {
     }
 
     this.logger.log(`Deleting project ${projectId} and all associated tasks`);
+
+    // Emit real-time event before deletion
+    this.eventsService.emitProjectDeleted({
+      projectId,
+      projectName: project.name,
+      actorId: userId,
+    });
+
     return this.prisma.project.delete({ where: { id: projectId } });
   }
 
@@ -192,6 +222,27 @@ export class ProjectsService {
     }
 
     this.logger.log(`Task created: ${task.id}`);
+
+    // Emit real-time event
+    this.eventsService.emitTaskCreated({
+      projectId,
+      taskId: task.id,
+      taskTitle: task.title,
+      actorId: userId,
+    });
+
+    // If task is assigned, emit assignment event with notification
+    if (dto.assigneeId) {
+      await this.eventsService.emitTaskAssigned({
+        projectId,
+        taskId: task.id,
+        taskTitle: task.title,
+        actorId: userId,
+        assigneeId: dto.assigneeId,
+        assigneeName: task.assignee?.name,
+      });
+    }
+
     return task;
   }
 
@@ -249,7 +300,7 @@ export class ProjectsService {
 
     // Validate status transition if status is being changed
     if (dto.status && dto.status !== task.status) {
-      this.validateStatusTransition(task.status, dto.status);
+      // this.validateStatusTransition(task.status, dto.status);
     }
 
     this.logger.log(`Updating task ${taskId}`);
@@ -273,6 +324,38 @@ export class ProjectsService {
       await this.logActivity(taskId, userId, 'PRIORITY_CHANGED', { from: task.priority, to: dto.priority });
     }
 
+    // Emit real-time event
+    this.eventsService.emitTaskUpdated({
+      projectId: task.projectId,
+      taskId,
+      taskTitle: updated.title,
+      actorId: userId,
+      changes: dto,
+    });
+
+    // If assignee changed, emit assignment event with notification
+    if (dto.assigneeId && dto.assigneeId !== task.assigneeId) {
+      await this.eventsService.emitTaskAssigned({
+        projectId: task.projectId,
+        taskId,
+        taskTitle: updated.title,
+        actorId: userId,
+        assigneeId: dto.assigneeId,
+        assigneeName: updated.assignee?.name,
+      });
+    }
+
+    // If task completed, emit completion event
+    if (dto.status === 'DONE' && task.status !== 'DONE') {
+      await this.eventsService.emitTaskCompleted({
+        projectId: task.projectId,
+        taskId,
+        taskTitle: updated.title,
+        actorId: userId,
+        creatorId: task.creatorId,
+      });
+    }
+
     return updated;
   }
 
@@ -292,6 +375,15 @@ export class ProjectsService {
     }
 
     this.logger.log(`Deleting task ${taskId}`);
+
+    // Emit real-time event before deletion
+    this.eventsService.emitTaskDeleted({
+      projectId: task.projectId,
+      taskId,
+      taskTitle: task.title,
+      actorId: userId,
+    });
+
     return this.prisma.task.delete({ where: { id: taskId } });
   }
 
@@ -334,6 +426,115 @@ export class ProjectsService {
         type,
         payload,
       },
+    });
+  }
+
+  // ---------------- PROJECT SETTINGS ----------------
+
+  async archiveProject(userId: string, projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+    
+    if (project.ownerId !== userId) {
+      throw new ForbiddenException('Only the project owner can archive the project');
+    }
+
+    this.logger.log(`Archiving project ${projectId}`);
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { isArchived: true },
+    });
+  }
+
+  async unarchiveProject(userId: string, projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+    
+    if (project.ownerId !== userId) {
+      throw new ForbiddenException('Only the project owner can unarchive the project');
+    }
+
+    this.logger.log(`Unarchiving project ${projectId}`);
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { isArchived: false },
+    });
+  }
+
+  async exportProject(userId: string, projectId: string, format: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        tasks: {
+          include: {
+            assignee: { select: { id: true, name: true, handle: true } },
+            creator: { select: { id: true, name: true, handle: true } },
+          },
+        },
+        owner: { select: { id: true, name: true, handle: true } },
+      },
+    });
+    
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+    
+    if (project.ownerId !== userId) {
+      throw new ForbiddenException('You do not have access to this project');
+    }
+
+    if (format === 'csv') {
+      // Generate CSV
+      const headers = ['Task ID', 'Title', 'Status', 'Priority', 'Assignee', 'Deadline', 'Created At'];
+      const rows = project.tasks.map((t) => [
+        t.id,
+        t.title,
+        t.status,
+        t.priority,
+        t.assignee?.name || 'Unassigned',
+        t.deadline?.toISOString() || '',
+        t.createdAt.toISOString(),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      return { format: 'csv', data: csv, filename: `${project.name}-tasks.csv` };
+    }
+
+    // Default: JSON
+    return { format: 'json', data: project, filename: `${project.name}-export.json` };
+  }
+
+  // ---------------- SUBTASKS ----------------
+
+  async getSubtasks(userId: string, projectId: string, taskId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: true },
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    if (task.projectId !== projectId) {
+      throw new NotFoundException('Task does not belong to this project');
+    }
+
+    if (task.project.ownerId !== userId && task.assigneeId !== userId) {
+      throw new ForbiddenException('You do not have access to this task');
+    }
+
+    return this.prisma.task.findMany({
+      where: { parentTaskId: taskId },
+      include: {
+        assignee: { select: { id: true, name: true, handle: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'asc' },
     });
   }
 }

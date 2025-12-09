@@ -1,5 +1,11 @@
-import { CreateProjectDto } from './create-project.dto';
-declare const UpdateProjectDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateProjectDto>>;
-export declare class UpdateProjectDto extends UpdateProjectDto_base {
+import { ProjectPriority, ProjectStatus } from './create-project.dto';
+export declare class UpdateProjectDto {
+    name?: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: ProjectStatus;
+    priority?: ProjectPriority;
+    tags?: string[];
+    isArchived?: boolean;
 }
-export {};

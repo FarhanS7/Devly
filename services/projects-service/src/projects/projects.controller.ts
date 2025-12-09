@@ -103,4 +103,36 @@ export class ProjectsController {
   deleteTask(@GetUser('id') userId: string, @Param('taskId') taskId: string) {
     return this.projectsService.deleteTask(userId, taskId);
   }
+
+  // ---------------- PROJECT SETTINGS ----------------
+
+  @Post(':id/archive')
+  archiveProject(@GetUser('id') userId: string, @Param('id') id: string) {
+    return this.projectsService.archiveProject(userId, id);
+  }
+
+  @Post(':id/unarchive')
+  unarchiveProject(@GetUser('id') userId: string, @Param('id') id: string) {
+    return this.projectsService.unarchiveProject(userId, id);
+  }
+
+  @Get(':id/export')
+  exportProject(
+    @GetUser('id') userId: string,
+    @Param('id') id: string,
+    @Query('format') format?: string,
+  ) {
+    return this.projectsService.exportProject(userId, id, format || 'json');
+  }
+
+  // ---------------- SUBTASKS ----------------
+
+  @Get(':projectId/tasks/:taskId/subtasks')
+  getSubtasks(
+    @GetUser('id') userId: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.projectsService.getSubtasks(userId, projectId, taskId);
+  }
 }

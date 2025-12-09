@@ -5,7 +5,7 @@ services:
   # 🐘 PostgreSQL Database
   # ===========================================
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: devconnect-postgres
     restart: unless-stopped
     environment:
@@ -13,19 +13,41 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: devconnect
     ports:
-      - "5435:5432" # host:container
+      - "5435:5432" # Exposed for local development only
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d devconnect"]
-      interval: 3s
+      interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 10s
     networks:
       - devconnect
 
   # ===========================================
-  # 🧩 Core NestJS Service
+  # 🔴 Redis (for caching & queues)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: devconnect-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379" # Exposed for local development only
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - devconnect
+
+  # ===========================================
+  # 🧩 Core Service (Auth, Users, Posts, Follows)
   # ===========================================
   core-service:
     build:
@@ -35,11 +57,26 @@ services:
     restart: unless-stopped
     env_file:
       - ./services/core-service/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/devconnect?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=development
     ports:
       - "3000:3000"
+    volumes:
+      - ./services/core-service/uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - devconnect
     command: >
@@ -48,12 +85,124 @@ services:
       node dist/src/main.js
       "
 
+  # ===========================================
+  # 💬 Chat Service (Teams, Channels, Messages)
+  # ===========================================
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: devconnect-chat-service
+    restart: unless-stopped
+    env_file:
+      - ./services/chat-service/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/devconnect?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=development
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./services/chat-service/uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - devconnect
+    command: >
+      sh -c "
+      npx prisma generate &&
+      node dist/src/main.js
+      "
+
+  # ===========================================
+  # 🚀 Projects Service (Projects, Tasks)
+  # ===========================================
+  projects-service:
+    build:
+      context: ./services/projects-service
+      dockerfile: Dockerfile
+    container_name: devconnect-projects-service
+    restart: unless-stopped
+    env_file:
+      - ./services/projects-service/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/devconnect?schema=public
+      - NODE_ENV=development
+    ports:
+      - "3006:3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - devconnect
+    command: >
+      sh -c "
+      npx prisma generate &&
+      node dist/src/main.js
+      "
+
+  # ===========================================
+  # 🔔 Notification Service
+  # ===========================================
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: devconnect-notification-service
+    restart: unless-stopped
+    env_file:
+      - ./services/notification-service/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/devconnect?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=development
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - devconnect
+    command: >
+      sh -c "
+      node dist/src/main.js
+      "
+
 # ===========================================
 # 🔗 Shared Network & Volumes
 # ===========================================
 networks:
   devconnect:
+    name: devconnect-network
     driver: bridge
 
 volumes:
   postgres_data:
+    name: devconnect-postgres-data
+  redis_data:
+    name: devconnect-redis-data

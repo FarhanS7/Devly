@@ -18,6 +18,10 @@ class CreateTaskDto {
     priority;
     status;
     assigneeId;
+    deadline;
+    tags;
+    attachments;
+    parentTaskId;
 }
 exports.CreateTaskDto = CreateTaskDto;
 __decorate([
@@ -45,4 +49,26 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "assigneeId", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTaskDto.prototype, "deadline", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateTaskDto.prototype, "tags", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateTaskDto.prototype, "attachments", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTaskDto.prototype, "parentTaskId", void 0);
 //# sourceMappingURL=create-task.dto.js.map

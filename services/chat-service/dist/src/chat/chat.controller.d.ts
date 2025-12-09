@@ -8,11 +8,11 @@ export declare class ChatController {
     getConversations(req: any): Promise<({
         messages: {
             id: string;
+            senderId: string;
             content: string | null;
             attachmentUrl: string | null;
             createdAt: Date;
             conversationId: string;
-            senderId: string;
         }[];
         participants: ({
             user: {
@@ -22,10 +22,10 @@ export declare class ChatController {
                 avatarUrl: string;
             };
         } & {
-            conversationId: string;
             userId: string;
             joinedAt: Date;
             lastReadMessageId: string | null;
+            conversationId: string;
         })[];
     } & {
         id: string;
@@ -41,22 +41,22 @@ export declare class ChatController {
         };
     } & {
         id: string;
+        senderId: string;
         content: string | null;
         attachmentUrl: string | null;
         createdAt: Date;
         conversationId: string;
-        senderId: string;
     })[]>;
     startConversation(req: any, body: {
         recipientId: string;
     }): Promise<{
         messages: {
             id: string;
+            senderId: string;
             content: string | null;
             attachmentUrl: string | null;
             createdAt: Date;
             conversationId: string;
-            senderId: string;
         }[];
         participants: ({
             user: {
@@ -66,10 +66,10 @@ export declare class ChatController {
                 avatarUrl: string;
             };
         } & {
-            conversationId: string;
             userId: string;
             joinedAt: Date;
             lastReadMessageId: string | null;
+            conversationId: string;
         })[];
     } & {
         id: string;

@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { HealthController } from './health/health.controller';
 import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
@@ -14,5 +15,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     NotificationsModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

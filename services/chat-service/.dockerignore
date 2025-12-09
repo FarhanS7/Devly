@@ -1,0 +1,52 @@
+# Dependencies (will be installed in Docker)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+*.spec.ts
+*.e2e-spec.ts
+test/
+
+# Environment files (use docker-compose env_file)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Documentation (not needed in container)
+README.md
+*.md
+!prisma/migrations/*.md
+
+# Uploads (mount as volume instead)
+uploads/
+
+# Misc
+.DS_Store
+Thumbs.db
+.dockerignore
+Dockerfile
+docker-compose*.yml

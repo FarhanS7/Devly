@@ -9,7 +9,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const terminus_1 = require("@nestjs/terminus");
 const auth_module_1 = require("./auth/auth.module");
+const health_controller_1 = require("./health/health.controller");
 const prisma_module_1 = require("./prisma/prisma.module");
 const projects_module_1 = require("./projects/projects.module");
 let AppModule = class AppModule {
@@ -24,7 +26,9 @@ exports.AppModule = AppModule = __decorate([
             prisma_module_1.PrismaModule,
             auth_module_1.AuthModule,
             projects_module_1.ProjectsModule,
+            terminus_1.TerminusModule,
         ],
+        controllers: [health_controller_1.HealthController],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

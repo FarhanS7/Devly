@@ -5,4 +5,8 @@ export declare class CreateTaskDto {
     priority?: TaskPriority;
     status?: TaskStatus;
     assigneeId?: string;
+    deadline?: string;
+    tags?: string[];
+    attachments?: string[];
+    parentTaskId?: string;
 }

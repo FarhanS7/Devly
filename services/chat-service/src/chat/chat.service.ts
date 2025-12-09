@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(public prisma: PrismaService) {}
 
   async saveMessage(senderId: string, payload: { conversationId: string; content?: string; attachmentUrl?: string }) {
     return this.prisma.message.create({
@@ -219,5 +219,166 @@ export class ChatService {
 
     const lastReadIndex = messages.findIndex(m => m.id === participant.lastReadMessageId);
     return lastReadIndex === -1 ? 0 : lastReadIndex;
+  }
+
+  /**
+   * Save a channel message (for Teams & Channels feature)
+   */
+  async saveChannelMessage(
+    senderId: string,
+    payload: {
+      channelId: string;
+      content?: string;
+      attachmentUrl?: string;
+      parentId?: string;
+    },
+  ) {
+    return this.prisma.channelMessage.create({
+      data: {
+        senderId,
+        channelId: payload.channelId,
+        content: payload.content,
+        attachmentUrl: payload.attachmentUrl,
+        parentId: payload.parentId,
+      },
+      include: {
+        sender: {
+          select: { id: true, name: true, avatarUrl: true, handle: true },
+        },
+        parent: payload.parentId
+          ? {
+              select: {
+                id: true,
+                content: true,
+                sender: {
+                  select: { id: true, name: true, handle: true },
+                },
+              },
+            }
+          : undefined,
+        _count: { select: { replies: true, reactions: true } },
+      },
+    });
+  }
+
+  //===============================================
+  // THREAD METHODS
+  //===============================================
+
+  /**
+   * Get all replies to a message (thread)
+   */
+  async getThreadReplies(messageId: string, options: { skip?: number; take?: number } = {}) {
+    const { skip = 0, take = 50 } = options;
+
+    const replies = await this.prisma.channelMessage.findMany({
+      where: { parentId: messageId },
+      include: {
+        sender: {
+          select: { id: true, name: true, avatarUrl: true, handle: true },
+        },
+        _count: { select: { replies: true, reactions: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      skip,
+      take,
+    });
+
+    const total = await this.prisma.channelMessage.count({
+      where: { parentId: messageId },
+    });
+
+    return { replies, total, hasMore: skip + take < total };
+  }
+
+  /**
+   * Get full thread (parent message + all replies)
+   */
+  async getFullThread(messageId: string) {
+    // Get parent message
+    const parent = await this.prisma.channelMessage.findUnique({
+      where: { id: messageId },
+      include: {
+        sender: {
+          select: { id: true, name: true, avatarUrl: true, handle: true },
+        },
+        _count: { select: { replies: true, reactions: true } },
+      },
+    });
+
+    if (!parent) {
+      return null;
+    }
+
+    // Get all replies
+    const replies = await this.prisma.channelMessage.findMany({
+      where: { parentId: messageId },
+      include: {
+        sender: {
+          select: { id: true, name: true, avatarUrl: true, handle: true },
+        },
+        _count: { select: { replies: true, reactions: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      parent,
+      replies,
+      replyCount: replies.length,
+    };
+  }
+
+  /**
+   * Get unique participants in a thread
+   */
+  async getThreadParticipants(messageId: string) {
+    const messages = await this.prisma.channelMessage.findMany({
+      where: {
+        OR: [{ id: messageId }, { parentId: messageId }],
+      },
+      select: {
+        sender: {
+          select: { id: true, name: true, avatarUrl: true, handle: true },
+        },
+      },
+    });
+
+    // Deduplicate by user ID
+    const uniqueUsers = new Map();
+    messages.forEach((msg) => {
+      if (!uniqueUsers.has(msg.sender.id)) {
+        uniqueUsers.set(msg.sender.id, msg.sender);
+      }
+    });
+
+    return Array.from(uniqueUsers.values());
+  }
+
+  /**
+   * Get thread summary
+   */
+  async getThreadSummary(messageId: string) {
+    const thread = await this.getFullThread(messageId);
+    if (!thread) {
+      return null;
+    }
+
+    const participants = await this.getThreadParticipants(messageId);
+    const latestReply = thread.replies[thread.replies.length - 1];
+
+    return {
+      messageId,
+      replyCount: thread.replyCount,
+      participants,
+      latestReply: latestReply
+        ? {
+            id: latestReply.id,
+            content: latestReply.content,
+            sender: latestReply.sender,
+            createdAt: latestReply.createdAt,
+          }
+        : null,
+    };
   }
 }

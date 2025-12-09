@@ -63,6 +63,18 @@ let ProjectsController = class ProjectsController {
     deleteTask(userId, taskId) {
         return this.projectsService.deleteTask(userId, taskId);
     }
+    archiveProject(userId, id) {
+        return this.projectsService.archiveProject(userId, id);
+    }
+    unarchiveProject(userId, id) {
+        return this.projectsService.unarchiveProject(userId, id);
+    }
+    exportProject(userId, id, format) {
+        return this.projectsService.exportProject(userId, id, format || 'json');
+    }
+    getSubtasks(userId, projectId, taskId) {
+        return this.projectsService.getSubtasks(userId, projectId, taskId);
+    }
 };
 exports.ProjectsController = ProjectsController;
 __decorate([
@@ -151,6 +163,40 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], ProjectsController.prototype, "deleteTask", null);
+__decorate([
+    (0, common_1.Post)(':id/archive'),
+    __param(0, (0, get_user_decorator_1.GetUser)('id')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectsController.prototype, "archiveProject", null);
+__decorate([
+    (0, common_1.Post)(':id/unarchive'),
+    __param(0, (0, get_user_decorator_1.GetUser)('id')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectsController.prototype, "unarchiveProject", null);
+__decorate([
+    (0, common_1.Get)(':id/export'),
+    __param(0, (0, get_user_decorator_1.GetUser)('id')),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('format')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectsController.prototype, "exportProject", null);
+__decorate([
+    (0, common_1.Get)(':projectId/tasks/:taskId/subtasks'),
+    __param(0, (0, get_user_decorator_1.GetUser)('id')),
+    __param(1, (0, common_1.Param)('projectId')),
+    __param(2, (0, common_1.Param)('taskId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectsController.prototype, "getSubtasks", null);
 exports.ProjectsController = ProjectsController = __decorate([
     (0, common_1.Controller)('projects'),
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),

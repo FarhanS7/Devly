@@ -1,13 +1,4 @@
-// {
-//   "compilerOptions": {
-//     "baseUrl": ".",
-//     "paths": {
-//       "@shared/*": ["shared/*"]
-//     }
-//   },
-//   "files": [],
-//   "references": [{ "path": "shared" }, { "path": "services/core-service" }]
-// }
+
 {
   "files": [],
   "references": [{ "path": "shared" }, { "path": "services/core-service" }],

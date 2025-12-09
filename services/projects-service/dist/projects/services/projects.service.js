@@ -12,12 +12,15 @@ var ProjectsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectsService = void 0;
 const common_1 = require("@nestjs/common");
+const events_service_1 = require("../../events/events.service");
 const prisma_service_1 = require("../../prisma/prisma.service");
 let ProjectsService = ProjectsService_1 = class ProjectsService {
     prisma;
+    eventsService;
     logger = new common_1.Logger(ProjectsService_1.name);
-    constructor(prisma) {
+    constructor(prisma, eventsService) {
         this.prisma = prisma;
+        this.eventsService = eventsService;
     }
     async createProject(userId, dto) {
         this.logger.log(`Creating project for user ${userId}: ${dto.name}`);
@@ -31,6 +34,11 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             },
         });
         this.logger.log(`Project created: ${project.id}`);
+        this.eventsService.emitProjectCreated({
+            projectId: project.id,
+            projectName: project.name,
+            actorId: userId,
+        });
         return project;
     }
     async getMyProjects(userId, options) {
@@ -107,10 +115,17 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             throw new common_1.ForbiddenException('Only the project owner can update the project');
         }
         this.logger.log(`Updating project ${projectId}`);
-        return this.prisma.project.update({
+        const updated = await this.prisma.project.update({
             where: { id: projectId },
             data: dto,
         });
+        this.eventsService.emitProjectUpdated({
+            projectId,
+            projectName: updated.name,
+            actorId: userId,
+            changes: dto,
+        });
+        return updated;
     }
     async deleteProject(userId, projectId) {
         const project = await this.prisma.project.findUnique({ where: { id: projectId } });
@@ -121,6 +136,11 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             throw new common_1.ForbiddenException('Only the project owner can delete the project');
         }
         this.logger.log(`Deleting project ${projectId} and all associated tasks`);
+        this.eventsService.emitProjectDeleted({
+            projectId,
+            projectName: project.name,
+            actorId: userId,
+        });
         return this.prisma.project.delete({ where: { id: projectId } });
     }
     async createTask(userId, projectId, dto) {
@@ -150,6 +170,22 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             await this.logActivity(task.id, userId, 'ASSIGNED', { assigneeId: dto.assigneeId });
         }
         this.logger.log(`Task created: ${task.id}`);
+        this.eventsService.emitTaskCreated({
+            projectId,
+            taskId: task.id,
+            taskTitle: task.title,
+            actorId: userId,
+        });
+        if (dto.assigneeId) {
+            await this.eventsService.emitTaskAssigned({
+                projectId,
+                taskId: task.id,
+                taskTitle: task.title,
+                actorId: userId,
+                assigneeId: dto.assigneeId,
+                assigneeName: task.assignee?.name,
+            });
+        }
         return task;
     }
     async getTaskById(userId, taskId) {
@@ -193,7 +229,6 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             await this.validateUserExists(dto.assigneeId);
         }
         if (dto.status && dto.status !== task.status) {
-            this.validateStatusTransition(task.status, dto.status);
         }
         this.logger.log(`Updating task ${taskId}`);
         const updated = await this.prisma.task.update({
@@ -212,6 +247,32 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
         if (dto.priority && dto.priority !== task.priority) {
             await this.logActivity(taskId, userId, 'PRIORITY_CHANGED', { from: task.priority, to: dto.priority });
         }
+        this.eventsService.emitTaskUpdated({
+            projectId: task.projectId,
+            taskId,
+            taskTitle: updated.title,
+            actorId: userId,
+            changes: dto,
+        });
+        if (dto.assigneeId && dto.assigneeId !== task.assigneeId) {
+            await this.eventsService.emitTaskAssigned({
+                projectId: task.projectId,
+                taskId,
+                taskTitle: updated.title,
+                actorId: userId,
+                assigneeId: dto.assigneeId,
+                assigneeName: updated.assignee?.name,
+            });
+        }
+        if (dto.status === 'DONE' && task.status !== 'DONE') {
+            await this.eventsService.emitTaskCompleted({
+                projectId: task.projectId,
+                taskId,
+                taskTitle: updated.title,
+                actorId: userId,
+                creatorId: task.creatorId,
+            });
+        }
         return updated;
     }
     async deleteTask(userId, taskId) {
@@ -226,6 +287,12 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             throw new common_1.ForbiddenException('Only the project owner can delete tasks');
         }
         this.logger.log(`Deleting task ${taskId}`);
+        this.eventsService.emitTaskDeleted({
+            projectId: task.projectId,
+            taskId,
+            taskTitle: task.title,
+            actorId: userId,
+        });
         return this.prisma.task.delete({ where: { id: taskId } });
     }
     async validateUserExists(userId) {
@@ -260,10 +327,96 @@ let ProjectsService = ProjectsService_1 = class ProjectsService {
             },
         });
     }
+    async archiveProject(userId, projectId) {
+        const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+        if (!project) {
+            throw new common_1.NotFoundException(`Project with ID ${projectId} not found`);
+        }
+        if (project.ownerId !== userId) {
+            throw new common_1.ForbiddenException('Only the project owner can archive the project');
+        }
+        this.logger.log(`Archiving project ${projectId}`);
+        return this.prisma.project.update({
+            where: { id: projectId },
+            data: { isArchived: true },
+        });
+    }
+    async unarchiveProject(userId, projectId) {
+        const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+        if (!project) {
+            throw new common_1.NotFoundException(`Project with ID ${projectId} not found`);
+        }
+        if (project.ownerId !== userId) {
+            throw new common_1.ForbiddenException('Only the project owner can unarchive the project');
+        }
+        this.logger.log(`Unarchiving project ${projectId}`);
+        return this.prisma.project.update({
+            where: { id: projectId },
+            data: { isArchived: false },
+        });
+    }
+    async exportProject(userId, projectId, format) {
+        const project = await this.prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+                tasks: {
+                    include: {
+                        assignee: { select: { id: true, name: true, handle: true } },
+                        creator: { select: { id: true, name: true, handle: true } },
+                    },
+                },
+                owner: { select: { id: true, name: true, handle: true } },
+            },
+        });
+        if (!project) {
+            throw new common_1.NotFoundException(`Project with ID ${projectId} not found`);
+        }
+        if (project.ownerId !== userId) {
+            throw new common_1.ForbiddenException('You do not have access to this project');
+        }
+        if (format === 'csv') {
+            const headers = ['Task ID', 'Title', 'Status', 'Priority', 'Assignee', 'Deadline', 'Created At'];
+            const rows = project.tasks.map((t) => [
+                t.id,
+                t.title,
+                t.status,
+                t.priority,
+                t.assignee?.name || 'Unassigned',
+                t.deadline?.toISOString() || '',
+                t.createdAt.toISOString(),
+            ]);
+            const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+            return { format: 'csv', data: csv, filename: `${project.name}-tasks.csv` };
+        }
+        return { format: 'json', data: project, filename: `${project.name}-export.json` };
+    }
+    async getSubtasks(userId, projectId, taskId) {
+        const task = await this.prisma.task.findUnique({
+            where: { id: taskId },
+            include: { project: true },
+        });
+        if (!task) {
+            throw new common_1.NotFoundException(`Task with ID ${taskId} not found`);
+        }
+        if (task.projectId !== projectId) {
+            throw new common_1.NotFoundException('Task does not belong to this project');
+        }
+        if (task.project.ownerId !== userId && task.assigneeId !== userId) {
+            throw new common_1.ForbiddenException('You do not have access to this task');
+        }
+        return this.prisma.task.findMany({
+            where: { parentTaskId: taskId },
+            include: {
+                assignee: { select: { id: true, name: true, handle: true, avatarUrl: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
 };
 exports.ProjectsService = ProjectsService;
 exports.ProjectsService = ProjectsService = ProjectsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        events_service_1.EventsService])
 ], ProjectsService);
 //# sourceMappingURL=projects.service.js.map

@@ -10,11 +10,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // ===========================================
-  // 🌐 CORS CONFIGURATION - MUST BE FIRST!
-  // ===========================================
-  // CRITICAL: Enable CORS BEFORE any other middleware
-  console.log('!!! APPLYING CORS CONFIGURATION (origin: true) !!!');
+  // CORS Configuration
   app.enableCors({
     origin: true, // Auto-reflects the requesting origin
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
@@ -28,10 +24,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ===========================================
-  // 🔐 SECURITY MIDDLEWARE
-  // ===========================================
-  // Helmet adds various HTTP headers for security
+  // Security Middleware
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // ✅ Allow images to be loaded from other origins (frontend)
     crossOriginEmbedderPolicy: false, // Allow embedding (adjust based on needs)
@@ -57,9 +50,7 @@ async function bootstrap() {
     }),
   );
 
-  // ===========================================
-  // 📁 STATIC FILE SERVING
-  // ===========================================
+  // Static File Serving
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
@@ -93,12 +84,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0'); // Listen on all interfaces for Docker
 
-  console.log(` Core service running on http://localhost:${port}`);
-  if (isDevelopment || process.env.ENABLE_SWAGGER === 'true') {
-    console.log(` Swagger docs available at http://localhost:${port}/api/docs`);
-  }
-  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`CORS Origins: http://localhost:8080, http://127.0.0.1:8080`);
+  console.log(`Core service is running on port ${port}`);
 }
 
 bootstrap();
