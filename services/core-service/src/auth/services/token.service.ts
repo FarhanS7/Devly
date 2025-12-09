@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -34,7 +35,7 @@ export class TokenService {
       '7d') as JwtSignOptions['expiresIn'];
 
     //  Add a random identifier (jti) to force uniqueness
-    const extendedPayload = { ...payload, jti: crypto.randomUUID() };
+    const extendedPayload = { ...payload, jti: randomUUID() };
 
     return this.jwt.signAsync(extendedPayload, {
       secret: process.env.JWT_REFRESH_SECRET!,

@@ -41,7 +41,7 @@ model User {
   ownedProjects Project[]
   createdTasks  Task[]         @relation("TaskCreator")
   assignedTasks Task[]         @relation("TaskAssignee")
-  taskActivities TaskActivity[]
+
 }
 
 ////////////////////////////////////////////////////
@@ -179,53 +179,37 @@ model Message {
 
 model Project {
   id          String   @id @default(uuid())
-  name        String
-  description String?
   ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  
+  // Relations
   owner User   @relation(fields: [ownerId], references: [id])
   tasks Task[]
+
+  // Note: Full Project data is managed by projects-service.
+  // This model exists here only for foreign key constraints.
 
   @@index([ownerId])
 }
 
 model Task {
   id          String       @id @default(uuid())
-  title       String
-  description String?
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
   projectId   String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
   creatorId   String
   assigneeId  String?
 
+  // Relations
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator  User    @relation("TaskCreator", fields: [creatorId], references: [id])
   assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
-  activities TaskActivity[]
+  // Note: Full Task data is managed by projects-service.
+  // This model exists here only for foreign key constraints.
 
   @@index([projectId])
   @@index([assigneeId])
 }
 
-model TaskActivity {
-  id        String   @id @default(uuid())
-  taskId    String
-  actorId   String
-  type      String // "STATUS_CHANGED", "COMMENT_ADDED", "ASSIGNED", etc.
-  payload   Json? // details (oldStatus, newStatus, etc.)
-  createdAt DateTime @default(now())
 
-  task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  actor User @relation(fields: [actorId], references: [id])
-
-  @@index([taskId])
-}
 
 enum TaskStatus {
   TODO
