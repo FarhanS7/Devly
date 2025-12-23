@@ -19,6 +19,16 @@ export class WsJwtGuard implements CanActivate {
         secret: process.env.JWT_SECRET || 'supersecretjwtkey_123',
       });
 
+      // 🔍 DIAGNOSTIC LOGGING (Remove after debugging)
+      console.log('╔═══════════════════════════════════════╗');
+      console.log('║   WebSocket Connection Authenticated  ║');
+      console.log('╠═══════════════════════════════════════╣');
+      console.log('║ Socket ID:', client.id);
+      console.log('║ User ID:  ', payload.sub);
+      console.log('║ Email:    ', payload.email);
+      console.log('║ Handle:   ', payload.handle);
+      console.log('╚═══════════════════════════════════════╝');
+
       // Attach user info to socket for later use
       client.user = payload;
       return true;
