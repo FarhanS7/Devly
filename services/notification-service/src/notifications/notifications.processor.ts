@@ -16,21 +16,26 @@ export class NotificationsProcessor {
     console.log('📥 Received notification job:', data);
 
     // 1) Persist to DB
+    console.log('💾 Saving notification to DB...');
     const saved = await this.notificationsService.createNotification({
       type: data.type,
       actorId: data.actorId,
       recipientId: data.recipientId,
       message: data.message,
       postId: data.postId,
+      messageId: data.messageId,
     });
+    console.log('✅ Notification saved:', saved.id);
 
     // 2) Push to user in real-time
+    console.log(`📣 Emitting to user:${saved.recipientId}`);
     this.gateway.emitToUser(saved.recipientId, 'notification', {
       id: saved.id,
       type: saved.type,
       message: saved.message,
       actorId: saved.actorId,
       postId: saved.postId ?? null,
+      messageId: saved.messageId ?? null,
       createdAt: saved.createdAt,
       seen: saved.seen,
     });

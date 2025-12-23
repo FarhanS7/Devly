@@ -52,6 +52,7 @@ export class NotificationsService {
     recipientId: string;
     message: string;
     postId?: string;
+    messageId?: string;
   }) {
     return this.prisma.notification.create({
       data: {
@@ -60,6 +61,7 @@ export class NotificationsService {
         recipientId: data.recipientId,
         message: data.message,
         postId: data.postId,
+        messageId: data.messageId,
       },
     });
   }

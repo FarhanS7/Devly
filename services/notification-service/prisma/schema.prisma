@@ -13,6 +13,7 @@ model Notification {
   actorId     String
   recipientId String
   postId      String?
+  messageId   String?
   message     String
   seen        Boolean   @default(false)
   createdAt   DateTime  @default(now())
@@ -24,6 +25,7 @@ enum NotificationType {
   FOLLOW
   LIKE
   COMMENT
+  MESSAGE_REACTION
   SYSTEM
   TASK_ASSIGNED
   TASK_COMPLETED
