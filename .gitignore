@@ -1,3 +1,8 @@
 node_modules
 .env
 DEPLOYMENT.md
+dist
+build
+.repos
+*.tsbuildinfo
+*.js.map
