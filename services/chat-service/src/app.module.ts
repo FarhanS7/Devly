@@ -1,10 +1,12 @@
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import { AuthModule } from './auth/auth.module';
 import { ChannelsModule } from './channels/channels.module';
 import { ChatModule } from './chat/chat.module';
+import { NotificationProducerModule } from './common/queues/notification.producer.module';
 import { HealthController } from './health/health.controller';
 import { PresenceModule } from './presence/presence.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,6 +28,17 @@ import { TeamsModule } from './teams/teams.module';
       }),
       inject: [ConfigService],
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST', 'localhost'),
+          port: configService.get('REDIS_PORT', 6379),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    NotificationProducerModule,
     PrismaModule,
     PresenceModule,
     AuthModule,

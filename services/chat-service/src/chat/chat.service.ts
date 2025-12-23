@@ -233,6 +233,20 @@ export class ChatService {
       parentId?: string;
     },
   ) {
+    // 🔍 DIAGNOSTIC: Verify user exists before saving
+    const userExists = await this.prisma.user.findUnique({
+      where: { id: senderId },
+      select: { id: true, name: true, handle: true, email: true },
+    });
+
+    if (!userExists) {
+      console.error('❌ ERROR: User not found in database!');
+      console.error('   Attempted senderId:', senderId);
+      throw new Error(`User ${senderId} not found in database`);
+    }
+
+    console.log('✓ User verified:', userExists.name || userExists.handle, '(', userExists.email, ')');
+
     return this.prisma.channelMessage.create({
       data: {
         senderId,

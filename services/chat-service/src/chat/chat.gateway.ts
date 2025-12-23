@@ -197,6 +197,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const userId = client.user.sub;
     
+    // 🔍 DIAGNOSTIC LOGGING (Remove after debugging)
+    console.log('┌─────────────────────────────────────┐');
+    console.log('│ Sending Channel Message              │');
+    console.log('├─────────────────────────────────────┤');
+    console.log('│ Socket ID:  ', client.id);
+    console.log('│ Sender ID:  ', userId);
+    console.log('│ Email:      ', client.user.email);
+    console.log('│ Channel ID: ', payload.channelId);
+    console.log('│ Content:    ', payload.content?.substring(0, 30));
+    console.log('└─────────────────────────────────────┘');
+    
     try {
       // Verify membership
       const isMember = await this.channelsService.isMember(payload.channelId, userId);
@@ -208,10 +219,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Save message to database
       const message = await this.chatService.saveChannelMessage(userId, payload);
       
+      // 🔍 DIAGNOSTIC LOGGING
+      console.log('✓ Message saved with senderId:', message.senderId);
+      console.log('✓ Sender name:', message.sender?.name || 'NULL');
+      
       // Broadcast to all users in the channel room
       this.server.to(payload.channelId).emit('channelMessageCreated', message);
     } catch (error) {
-      console.error('Error sending channel message:', error);
+      console.error('❌ Error sending channel message:', error);
       client.emit('error', { message: 'Failed to send message' });
     }
   }
