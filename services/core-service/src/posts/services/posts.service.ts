@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
 } from '@nestjs/common';
 import { NotificationProducer } from '../../common/queues/notification.producer';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -196,7 +196,18 @@ export class PostsService {
 
     if (post.authorId !== userId) {
       try {
-        this.notifications.sendLikeNotification(userId, post.authorId, postId);
+        const actor = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true, handle: true },
+        });
+        const actorName = actor?.name || actor?.handle || 'Someone';
+
+        this.notifications.sendLikeNotification(
+          userId,
+          post.authorId,
+          postId,
+          actorName,
+        );
       } catch {
         // ignore Redis/queue errors
       }

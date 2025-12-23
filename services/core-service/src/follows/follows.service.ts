@@ -128,9 +128,9 @@
 //   }
 // }
 import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
+    BadRequestException,
+    Injectable,
+    NotFoundException,
 } from '@nestjs/common';
 import { NotificationProducer } from '../common/queues/notification.producer';
 import { PrismaService } from '../prisma/prisma.service';
@@ -168,18 +168,19 @@ export class FollowsService {
       data: { followerId: userId, followingId: targetId },
     });
 
-    // Fetch follower handle for the notification
+    // Fetch follower details for the notification
     const follower = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { handle: true },
+      select: { name: true, handle: true },
     });
+    const followerName = follower?.name || follower?.handle || 'Someone';
 
     // Queue follow notification in Redis (best effort)
     try {
       await this.notifications.sendFollowNotification(
         userId,
         targetId,
-        follower?.handle || 'Someone',
+        followerName,
       );
     } catch {
       // ignore queue errors in dev/test

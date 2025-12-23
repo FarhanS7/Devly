@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
 } from '@nestjs/common';
 import { NotificationProducer } from '../common/queues/notification.producer';
 import { PrismaService } from '../prisma/prisma.service';
@@ -56,11 +56,14 @@ export class CommentsService {
 
     // --- Notify post author or parent author ---
     try {
+      const actorName = created.author.name || created.author.handle || 'Someone';
+
       if (!dto.parentId && post.authorId !== userId) {
         await this.notifications.sendCommentNotification(
           userId,
           post.authorId,
           postId,
+          actorName,
         );
       } else if (dto.parentId) {
         const parentAuthor = await this.prisma.comment.findUnique({
@@ -72,6 +75,7 @@ export class CommentsService {
             userId,
             parentAuthor.authorId,
             postId,
+            actorName,
           );
         }
       }

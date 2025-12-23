@@ -19,7 +19,7 @@ export class NotificationProducer {
    * Generic queue method (used internally by all specialized ones)
    */
   private enqueue(
-    type: 'FOLLOW' | 'LIKE' | 'COMMENT',
+    type: 'FOLLOW' | 'LIKE' | 'COMMENT' | 'MESSAGE_REACTION',
     payload: Record<string, any>,
   ): void {
     // Fire-and-forget + swallow connection errors (tests, local without Redis)
@@ -55,12 +55,12 @@ export class NotificationProducer {
   sendFollowNotification(
     followerId: string,
     targetId: string,
-    followerHandle: string,
+    followerName: string,
   ): void {
     this.enqueue('FOLLOW', {
       actorId: followerId,
       recipientId: targetId,
-      message: `${followerHandle} started following you`,
+      message: `${followerName} started following you`,
     });
   }
 
@@ -71,40 +71,30 @@ export class NotificationProducer {
     actorId: string,
     recipientId: string,
     postId: string,
+    actorName: string,
   ): void {
     this.enqueue('LIKE', {
       actorId,
       recipientId,
       postId,
-      message: `Your post received a like`,
+      message: `${actorName} liked your post`,
     });
   }
 
   /**
    * Called when a user comments on a post.
    */
-  // sendCommentNotification(
-  //   actorId: string,
-  //   recipientId: string,
-  //   postId: string,
-  // ): void {
-  //   this.enqueue('COMMENT', {
-  //     actorId,
-  //     recipientId,
-  //     postId,
-  //     message: `Someone commented on your post 💬`,
-  //   });
-  // }
   async sendCommentNotification(
     actorId: string,
     recipientId: string,
     postId: string,
+    actorName: string,
   ) {
     return this.enqueue('COMMENT', {
       actorId,
       recipientId,
       postId,
-      message: `Someone commented on your post 💬`,
+      message: `${actorName} commented on your post 💬`,
     });
   }
 }
