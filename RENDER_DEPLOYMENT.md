@@ -1,20 +1,15 @@
 # 🚀 Render Deployment Guide: DevConnect Backend
 
-This guide provides an optimized way to deploy the DevConnect backend services on Render using **Environment Groups**. This method is much faster as it allows you to enter your configuration just once for all services.
+This guide provides an optimized way to deploy the DevConnect backend services on Render using **Environment Groups**.
 
 ## 🛠️ Fastest Method: Infrastructure as Code (Blueprint V2)
 
-1.  **Update `render.yaml`**: Copy and paste the optimized code below into your `render.yaml` file in the root of your project.
+1.  **Update `render.yaml`**: Copy and paste the optimized code below into your `render.yaml` file.
 2.  **Push to GitHub**: Commit and push the change to your `main` branch.
 3.  **Deploy in Render**:
     - Go to your Render Dashboard -> **Blueprints**.
     - Click **New Blueprint Instance** and select your repo.
-    - Render will now show a section for **"Environment Groups"** called `devconnect-shared-secrets`.
-    - **Enter your variables only once** in this group:
-        - `DATABASE_URL`: Your Neon connection string.
-        - `JWT_SECRET`: A random secure string.
-        - `JWT_REFRESH_SECRET`: Another random secure string.
-        - `FRONTEND_URL`: Your Vercel URL.
+    - Fill in your variables in the `devconnect-shared-secrets` group.
     - Click **Deploy**.
 
 ---
@@ -41,7 +36,7 @@ services:
     env: node
     plan: free
     rootDir: services/core-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -56,7 +51,7 @@ services:
     env: node
     plan: free
     rootDir: services/chat-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -71,7 +66,7 @@ services:
     env: node
     plan: free
     rootDir: services/projects-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -81,7 +76,7 @@ services:
     env: node
     plan: free
     rootDir: services/notification-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets

@@ -18,7 +18,7 @@ services:
     env: node
     plan: free
     rootDir: services/core-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -33,7 +33,7 @@ services:
     env: node
     plan: free
     rootDir: services/chat-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -48,7 +48,7 @@ services:
     env: node
     plan: free
     rootDir: services/projects-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
@@ -58,7 +58,7 @@ services:
     env: node
     plan: free
     rootDir: services/notification-service
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - fromGroup: devconnect-shared-secrets
