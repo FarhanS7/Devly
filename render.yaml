@@ -19,6 +19,10 @@ services:
           property: connectionString
       - key: JWT_SECRET
         sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
       - key: NODE_ENV
         value: production
 
@@ -80,10 +84,10 @@ services:
       - key: NODE_ENV
         value: production
 
-# ===========================================
-# 📦 Redis for Queues
-# ===========================================
-- type: redis
-  name: devconnect-redis
-  plan: free
-  ipAllowList: [] # Only allow internal access
+  # ===========================================
+  # 📦 Redis for Queues
+  # ===========================================
+  - type: redis
+    name: devconnect-redis
+    plan: free
+    ipAllowList: [] # Only allow internal access
