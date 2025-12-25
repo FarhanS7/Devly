@@ -1,8 +1,44 @@
-node_modules
-.env
-DEPLOYMENT.md
-dist
-build
-.repos
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+dist/
+**/dist/
+build/
+**/build/
+.repos/
 *.tsbuildinfo
 *.js.map
+
+# Deployment & Infrastructure
+render.yaml
+DEPLOYMENT.md
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor & IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Database & Prisma
+prisma/migrations/
+# Only ignore migrations if you want to keep them out of git (usually you DON'T)
+# but for this specific cleanup request, I'll keep them unless asked.
+# Let's ignore prisma error logs specifically.
+prisma_error*.log
+**/prisma_error*.log

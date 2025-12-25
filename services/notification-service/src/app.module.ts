@@ -8,7 +8,7 @@ import { NotificationsModule } from './notifications/notifications.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     BullModule.forRoot({
-      redis: {
+      redis: process.env.REDIS_URL || {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
       },

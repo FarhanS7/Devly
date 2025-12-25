@@ -19,19 +19,23 @@ import { TeamsModule } from './teams/teams.module';
       isGlobal: true,
     }),
     RedisModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'single',
-        options: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get('REDIS_PORT', 6379),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = configService.get('REDIS_URL');
+        return {
+          type: 'single',
+          url: url ? url : undefined,
+          options: url ? undefined : {
+            host: configService.get('REDIS_HOST', 'localhost'),
+            port: configService.get('REDIS_PORT', 6379),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        redis: {
+        redis: configService.get('REDIS_URL') || {
           host: configService.get('REDIS_HOST', 'localhost'),
           port: configService.get('REDIS_PORT', 6379),
         },
