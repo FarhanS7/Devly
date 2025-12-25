@@ -1,93 +1,98 @@
 # 🚀 Render Deployment Guide: DevConnect Backend
 
-This guide provides a comprehensive walkthrough for deploying the DevConnect backend services on [Render](https://render.com).
+This guide provides an optimized way to deploy the DevConnect backend services on Render using **Environment Groups**. This method is much faster as it allows you to enter your configuration just once for all services.
 
-## 📋 Prerequisites
+## 🛠️ Fastest Method: Infrastructure as Code (Blueprint V2)
 
-Before you begin, ensure you have:
-1. A **Render Account**.
-2. A **PostgreSQL Database** (Render offers a managed PostgreSQL service).
-3. A **Redis Instance** (Render offers a managed Redis service).
-4. **Clerk API Keys** (from your Clerk dashboard).
-
----
-
-## 🛠️ Method 1: Infrastructure as Code (Recommended)
-
-DevConnect includes a `render.yaml` Blueprint file that can deploy all services, the database, and Redis with a single configuration.
-
-1. **Connect your GitHub or GitLab repository** to Render.
-2. Go to the **Blueprints** section in the Render Dashboard.
-3. Click **New Blueprint Instance**.
-4. Select your repository.
-5. Render will automatically detect the `render.yaml` file.
-6. **Fill in the Environment Variables** requested by the Blueprint.
-7. Click **Deploy**.
+1.  **Update `render.yaml`**: Copy and paste the optimized code below into your `render.yaml` file in the root of your project.
+2.  **Push to GitHub**: Commit and push the change to your `main` branch.
+3.  **Deploy in Render**:
+    - Go to your Render Dashboard -> **Blueprints**.
+    - Click **New Blueprint Instance** and select your repo.
+    - Render will now show a section for **"Environment Groups"** called `devconnect-shared-secrets`.
+    - **Enter your variables only once** in this group:
+        - `DATABASE_URL`: Your Neon connection string.
+        - `JWT_SECRET`: A random secure string.
+        - `JWT_REFRESH_SECRET`: Another random secure string.
+        - `FRONTEND_URL`: Your Vercel URL.
+    - Click **Deploy**.
 
 ---
 
-## 🖱️ Method 2: Manual Deployment
+### ✅ Optimized `render.yaml`
+```yaml
+envVarGroups:
+  - name: devconnect-shared-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false 
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
 
-If you prefer to set up each service manually, follow these steps for each service.
+services:
+  - type: web
+    name: devconnect-core
+    env: node
+    plan: free
+    rootDir: services/core-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - fromGroup: devconnect-shared-secrets
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: devconnect-redis
+          property: connectionString
 
-### 1. Database & Redis Setup
-- **Create a PostgreSQL Database** on Render. 
-- Once created, copy the **Internal Database URL**. You will need to paste this into the `DATABASE_URL` fields when Render prompts you during the blueprint setup.
-- **Redis Instance** is automatically created by the blueprint.
+  - type: web
+    name: devconnect-chat
+    env: node
+    plan: free
+    rootDir: services/chat-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - fromGroup: devconnect-shared-secrets
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: devconnect-redis
+          property: connectionString
 
-### 2. Core Service (`devconnect-core`)
-- **Service Type**: Web Service
-- **Runtime**: Node
-- **Root Directory**: `services/core-service`
-- **Build Command**: `npm install && npx prisma generate && npm run build`
-- **Start Command**: `npm run start:prod`
-- **Environment Variables**:
-  - `DATABASE_URL`: Your PostgreSQL Internal URL (Paste when prompted).
-  - `REDIS_URL`: Automatically linked.
-  - `NODE_ENV`: `production`
-  - `JWT_SECRET`: A random secure string (Enter when prompted).
-  - `JWT_REFRESH_SECRET`: Another random secure string (You may need to add this manually if not in the prompt).
-  - `FRONTEND_URL`: The URL of your deployed frontend (e.g., `https://your-app.vercel.app`).
+  - type: web
+    name: devconnect-projects
+    env: node
+    plan: free
+    rootDir: services/projects-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - fromGroup: devconnect-shared-secrets
 
-### 3. Chat Service (`devconnect-chat`)
-- **Service Type**: Web Service
-- **Root Directory**: `services/chat-service`
-- **Build Command**: `npm install && npx prisma generate && npm run build`
-- **Start Command**: `npm run start:prod`
-- **Environment Variables**:
-  - `DATABASE_URL`: Same as Core Service.
-  - `REDIS_URL`: Automatically linked.
-  - `PORT`: `3001` (Render usually sets this automatically, but ensure it matches your app).
+  - type: web
+    name: devconnect-notifications
+    env: node
+    plan: free
+    rootDir: services/notification-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - fromGroup: devconnect-shared-secrets
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: devconnect-redis
+          property: connectionString
 
-### 4. Notification Service (`devconnect-notifications`)
-- **Service Type**: Web Service
-- **Root Directory**: `services/notification-service`
-- **Build Command**: `npm install && npx prisma generate && npm run build`
-- **Start Command**: `npm run start:prod`
-- **Environment Variables**:
-  - `DATABASE_URL`: Same as Core Service.
-  - `REDIS_URL`: Automatically linked.
-
-### 5. Projects Service (`devconnect-projects`)
-- **Service Type**: Web Service
-- **Root Directory**: `services/projects-service`
-- **Build Command**: `npm install && npx prisma generate && npm run build`
-- **Start Command**: `npm run start:prod`
-- **Environment Variables**:
-  - `DATABASE_URL`: Same as Core Service.
-
----
-
-## 🌐 Connecting the Frontend
-
-Once your backend services are live, update your frontend environment variables:
-
-- `NEXT_PUBLIC_CORE_API_URL`: Your `devconnect-core` Render URL.
-- `NEXT_PUBLIC_CHAT_API_URL`: Your `devconnect-chat` Render URL.
-- `NEXT_PUBLIC_PROJECTS_API_URL`: Your `devconnect-projects` Render URL.
-
-> [!TIP]
-> Use Render's **Log Streams** to monitor your services during deployment and identify any configuration errors quickly.
-
-> [!IMPORTANT]
-> Ensure all services are in the same **Render Region** to minimize latency and ensure they can communicate via internal URLs.
+  - type: redis
+    name: devconnect-redis
+    plan: free
+    ipAllowList: [] 
+```

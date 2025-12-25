@@ -1,22 +1,8 @@
-services:
-  # ===========================================
-  # 🧩 Core Service
-  # ===========================================
-  - type: web
-    name: devconnect-core
-    env: node
-    plan: free
-    rootDir: services/core-service
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npm run start:prod
+envVarGroups:
+  - name: devconnect-shared-secrets
     envVars:
       - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: devconnect-redis
-          property: connectionString
+        sync: false 
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -26,9 +12,22 @@ services:
       - key: NODE_ENV
         value: production
 
-  # ===========================================
-  # 💬 Chat Service
-  # ===========================================
+services:
+  - type: web
+    name: devconnect-core
+    env: node
+    plan: free
+    rootDir: services/core-service
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - fromGroup: devconnect-shared-secrets
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: devconnect-redis
+          property: connectionString
+
   - type: web
     name: devconnect-chat
     env: node
@@ -37,19 +36,13 @@ services:
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
-      - key: DATABASE_URL
-        sync: false
+      - fromGroup: devconnect-shared-secrets
       - key: REDIS_URL
         fromService:
           type: redis
           name: devconnect-redis
           property: connectionString
-      - key: NODE_ENV
-        value: production
 
-  # ===========================================
-  # 🚀 Projects Service
-  # ===========================================
   - type: web
     name: devconnect-projects
     env: node
@@ -58,14 +51,8 @@ services:
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: NODE_ENV
-        value: production
+      - fromGroup: devconnect-shared-secrets
 
-  # ===========================================
-  # 🔔 Notification Service
-  # ===========================================
   - type: web
     name: devconnect-notifications
     env: node
@@ -74,20 +61,14 @@ services:
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
-      - key: DATABASE_URL
-        sync: false
+      - fromGroup: devconnect-shared-secrets
       - key: REDIS_URL
         fromService:
           type: redis
           name: devconnect-redis
           property: connectionString
-      - key: NODE_ENV
-        value: production
 
-  # ===========================================
-  # 📦 Redis for Queues
-  # ===========================================
   - type: redis
     name: devconnect-redis
     plan: free
-    ipAllowList: [] # Only allow internal access
+    ipAllowList: [] 
